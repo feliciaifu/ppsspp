@@ -151,6 +151,7 @@ protected:
 	UI::EventReturn OnSupport(UI::EventParams &e);
 	UI::EventReturn OnPPSSPPOrg(UI::EventParams &e);
 	UI::EventReturn OnForums(UI::EventParams &e);
+	UI::EventReturn OnBootVsh(UI::EventParams &e);
 	UI::EventReturn OnExit(UI::EventParams &e);
 	UI::EventReturn OnDownloadUpgrade(UI::EventParams &e);
 	UI::EventReturn OnDismissUpgrade(UI::EventParams &e);

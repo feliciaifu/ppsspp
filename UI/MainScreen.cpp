@@ -1321,6 +1321,8 @@ void MainScreen::CreateViews() {
 			gold->SetIcon(ImageID("I_ICONGOLD"), 0.5f);
 		}
 	}
+	//Boot Vsh
+	rightColumnChoices->Add(new Choice(mm->T("Boot Vsh","Boot Vsh")))->OnClick.Handle(this,&MainScreen::OnBootVsh);
 
 	rightColumnChoices->Add(new Spacer(25.0));
 #if !PPSSPP_PLATFORM(IOS_APP_STORE)
@@ -1457,6 +1459,10 @@ UI::EventReturn MainScreen::OnLoadFile(UI::EventParams &e) {
 			System_PostUIMessage(UIMessage::REQUEST_GAME_BOOT, value);
 		});
 	}
+	return UI::EVENT_DONE;
+}
+UI::EventReturn MainScreen::OnBootVsh(UI::EventParams &e) {
+	//TODO
 	return UI::EVENT_DONE;
 }
 
