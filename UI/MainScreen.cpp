@@ -75,6 +75,25 @@
 
 bool MainScreen::showHomebrewTab = false;
 
+static Path FindVshEntryPath() {
+	if (g_Config.flash0Directory.empty()) {
+		return {};
+	}
+
+	static const char *const candidates[] = {
+		"vsh/module/vshmain.prx",
+	};
+
+	for (const char *candidate : candidates) {
+		Path path = g_Config.flash0Directory / candidate;
+		if (File::Exists(path)) {
+			return path;
+		}
+	}
+
+	return {};
+}
+
 bool LaunchFile(ScreenManager *screenManager, const Path &path) {
 	// Depending on the file type, we don't want to launch EmuScreen at all.
 	std::unique_ptr<FileLoader> loader(ConstructFileLoader(path));
@@ -1462,7 +1481,15 @@ UI::EventReturn MainScreen::OnLoadFile(UI::EventParams &e) {
 	return UI::EVENT_DONE;
 }
 UI::EventReturn MainScreen::OnBootVsh(UI::EventParams &e) {
-	//TODO
+	auto mm = GetI18NCategory(I18NCat::MAINMENU);
+	Path vshPath = FindVshEntryPath();
+	if (vshPath.empty()) {
+		g_OSD.Show(OSDType::MESSAGE_ERROR, mm->T("BootVshNotFound", "Could not find a VSH entry in flash0."));
+		return UI::EVENT_DONE;
+	}
+	if (!LaunchFile(screenManager(), vshPath)) {
+		g_OSD.Show(OSDType::MESSAGE_ERROR, mm->T("BootVshFailed", "Failed to launch the VSH entry."), vshPath.ToVisualString(), 5.0f);
+	}
 	return UI::EVENT_DONE;
 }
 
