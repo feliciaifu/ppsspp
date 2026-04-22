@@ -187,7 +187,11 @@ static void SetPSPAnalog(int stick, float x, float y) {
 }
 
 EmuScreen::EmuScreen(const Path &filename)
-	: gamePath_(filename) {
+	: EmuScreen(filename, BootIntent::GAME) {
+}
+
+EmuScreen::EmuScreen(const Path &filename, BootIntent bootIntent)
+	: gamePath_(filename), bootIntent_(bootIntent) {
 	saveStateSlot_ = SaveState::GetCurrentSlot();
 	__DisplayListenVblank(__EmuScreenVblank);
 	frameStep_ = false;
@@ -272,6 +276,7 @@ void EmuScreen::ProcessGameBoot(const Path &filename) {
 		g_BackgroundAudio.SetGame(Path());
 		bootPending_ = false;
 		errorMessage_ = error_string;
+		g_OSD.Show(OSDType::MESSAGE_ERROR, errorMessage_, 5.0f);
 		ERROR_LOG(Log::Boot, "Boot failed: %s", errorMessage_.c_str());
 		return;
 	case BootState::Complete:
@@ -329,6 +334,14 @@ void EmuScreen::ProcessGameBoot(const Path &filename) {
 	coreParam.fileToStart = filename;
 	coreParam.mountIso.clear();
 	coreParam.mountRoot.clear();
+	coreParam.bootIntent = bootIntent_;
+	if (bootIntent_ == BootIntent::VSH) {
+		coreParam.initApitype = 0x300;
+		coreParam.bootFrom = 0x00;
+	} else {
+		coreParam.initApitype = 0x110;
+		coreParam.bootFrom = 0x20;
+	}
 	coreParam.startBreak = !g_Config.bAutoRun;
 	coreParam.headLess = false;
 

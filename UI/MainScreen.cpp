@@ -1487,9 +1487,7 @@ UI::EventReturn MainScreen::OnBootVsh(UI::EventParams &e) {
 		g_OSD.Show(OSDType::MESSAGE_ERROR, mm->T("BootVshNotFound", "Could not find a VSH entry in flash0."));
 		return UI::EVENT_DONE;
 	}
-	if (!LaunchFile(screenManager(), vshPath)) {
-		g_OSD.Show(OSDType::MESSAGE_ERROR, mm->T("BootVshFailed", "Failed to launch the VSH entry."), vshPath.ToVisualString(), 5.0f);
-	}
+	screenManager()->switchScreen(new EmuScreen(vshPath, BootIntent::VSH));
 	return UI::EVENT_DONE;
 }
 

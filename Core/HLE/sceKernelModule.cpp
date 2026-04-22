@@ -1727,6 +1727,13 @@ bool __KernelLoadExec(const char *filename, u32 paramPtr, std::string *error_str
 		Memory::Memcpy(param_key, keyAddr, (u32)keylen, "KernelLoadParam");
 	}
 
+	__KernelSetInitExecValues(
+		PSP_CoreParameter().bootIntent == BootIntent::VSH ? 0x100 : 0x200,
+		PSP_CoreParameter().bootFrom,
+		PSP_CoreParameter().initApitype,
+		filename
+	);
+
 	__KernelLoadReset();
 
 	std::vector<uint8_t> fileData;

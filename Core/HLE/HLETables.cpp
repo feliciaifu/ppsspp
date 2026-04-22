@@ -198,13 +198,92 @@ const HLEFunction KDebugForKernel[] =
 	{0XB7251823, nullptr,                                            "sceKernelAcceptMbogoSig",                 '?', ""   },
 };
 
-const HLEFunction pspeDebug[] = 
+const HLEFunction pspeDebug[] =
 {
 	{0XDEADBEAF, nullptr,                                            "pspeDebugWrite",                          '?', ""   },
 };
 
+#define VSH_STUB(name) static int name() { return hleNoLog(0); }
 
-const HLEModule moduleList[] = 
+VSH_STUB(sceVshBridge_01730088)
+VSH_STUB(sceVshBridge_0543156C)
+VSH_STUB(sceVshBridge_61001D64)
+VSH_STUB(sceVshBridge_C949966C)
+VSH_STUB(sceVshBridge_DB7C3D5A)
+VSH_STUB(sceVshBridge_21C243FE)
+
+VSH_STUB(sceVshCommonUtil_1D7E0B27)
+VSH_STUB(sceVshCommonUtil_2058CEAA)
+VSH_STUB(sceVshCommonUtil_34826464)
+VSH_STUB(sceVshCommonUtil_38C93C16)
+VSH_STUB(sceVshCommonUtil_3CA4266A)
+VSH_STUB(sceVshCommonUtil_A721B1D1)
+VSH_STUB(sceVshCommonUtil_649C3568)
+
+VSH_STUB(scePaf_03B20F85)
+VSH_STUB(scePaf_30AF7A24)
+VSH_STUB(scePaf_44AE2A91)
+VSH_STUB(scePaf_5476FD2B)
+VSH_STUB(scePaf_5CC6AA3C)
+VSH_STUB(scePaf_5E909060)
+VSH_STUB(scePaf_726DFBA9)
+VSH_STUB(scePaf_77ADEAEB)
+VSH_STUB(scePaf_781E5F1E)
+VSH_STUB(scePaf_85CFB6E6)
+VSH_STUB(scePaf_9FA3F3F6)
+VSH_STUB(scePaf_CC3426BF)
+VSH_STUB(scePaf_D590412B)
+VSH_STUB(scePaf_D7DCB972)
+VSH_STUB(scePaf_E00895CD)
+VSH_STUB(scePaf_F48A9040)
+VSH_STUB(scePaf_FC5C8A32)
+
+#undef VSH_STUB
+
+const HLEFunction sceVshBridge[] =
+{
+	{0X01730088, &WrapI_V<sceVshBridge_01730088>,                     "sceVshBridge_01730088",                   'i', ""   },
+	{0X0543156C, &WrapI_V<sceVshBridge_0543156C>,                     "sceVshBridge_0543156C",                   'i', ""   },
+	{0X21C243FE, &WrapI_V<sceVshBridge_21C243FE>,                     "sceVshBridge_21C243FE",                   'i', ""   },
+	{0X61001D64, &WrapI_V<sceVshBridge_61001D64>,                     "sceVshBridge_61001D64",                   'i', ""   },
+	{0XC949966C, &WrapI_V<sceVshBridge_C949966C>,                     "sceVshBridge_C949966C",                   'i', ""   },
+	{0XDB7C3D5A, &WrapI_V<sceVshBridge_DB7C3D5A>,                     "sceVshBridge_DB7C3D5A",                   'i', ""   },
+};
+
+const HLEFunction sceVshCommonUtil[] =
+{
+	{0X1D7E0B27, &WrapI_V<sceVshCommonUtil_1D7E0B27>,                 "sceVshCommonUtil_1D7E0B27",               'i', ""   },
+	{0X2058CEAA, &WrapI_V<sceVshCommonUtil_2058CEAA>,                "sceVshCommonUtil_2058CEAA",              'i', ""   },
+	{0X34826464, &WrapI_V<sceVshCommonUtil_34826464>,                "sceVshCommonUtil_34826464",              'i', ""   },
+	{0X38C93C16, &WrapI_V<sceVshCommonUtil_38C93C16>,                "sceVshCommonUtil_38C93C16",              'i', ""   },
+	{0X3CA4266A, &WrapI_V<sceVshCommonUtil_3CA4266A>,                "sceVshCommonUtil_3CA4266A",              'i', ""   },
+	{0X649C3568, &WrapI_V<sceVshCommonUtil_649C3568>,                "sceVshCommonUtil_649C3568",              'i', ""   },
+	{0XA721B1D1, &WrapI_V<sceVshCommonUtil_A721B1D1>,                "sceVshCommonUtil_A721B1D1",              'i', ""   },
+};
+
+const HLEFunction scePaf[] =
+{
+	{0X03B20F85, &WrapI_V<scePaf_03B20F85>,                          "scePaf_03B20F85",                        'i', ""   },
+	{0X30AF7A24, &WrapI_V<scePaf_30AF7A24>,                          "scePaf_30AF7A24",                        'i', ""   },
+	{0X44AE2A91, &WrapI_V<scePaf_44AE2A91>,                          "scePaf_44AE2A91",                        'i', ""   },
+	{0X5476FD2B, &WrapI_V<scePaf_5476FD2B>,                          "scePaf_5476FD2B",                        'i', ""   },
+	{0X5CC6AA3C, &WrapI_V<scePaf_5CC6AA3C>,                          "scePaf_5CC6AA3C",                        'i', ""   },
+	{0X5E909060, &WrapI_V<scePaf_5E909060>,                          "scePaf_5E909060",                        'i', ""   },
+	{0X726DFBA9, &WrapI_V<scePaf_726DFBA9>,                          "scePaf_726DFBA9",                        'i', ""   },
+	{0X77ADEAEB, &WrapI_V<scePaf_77ADEAEB>,                          "scePaf_77ADEAEB",                        'i', ""   },
+	{0X781E5F1E, &WrapI_V<scePaf_781E5F1E>,                          "scePaf_781E5F1E",                        'i', ""   },
+	{0X85CFB6E6, &WrapI_V<scePaf_85CFB6E6>,                          "scePaf_85CFB6E6",                        'i', ""   },
+	{0X9FA3F3F6, &WrapI_V<scePaf_9FA3F3F6>,                          "scePaf_9FA3F3F6",                        'i', ""   },
+	{0XCC3426BF, &WrapI_V<scePaf_CC3426BF>,                          "scePaf_CC3426BF",                        'i', ""   },
+	{0XD590412B, &WrapI_V<scePaf_D590412B>,                          "scePaf_D590412B",                        'i', ""   },
+	{0XD7DCB972, &WrapI_V<scePaf_D7DCB972>,                          "scePaf_D7DCB972",                        'i', ""   },
+	{0XE00895CD, &WrapI_V<scePaf_E00895CD>,                          "scePaf_E00895CD",                        'i', ""   },
+	{0XF48A9040, &WrapI_V<scePaf_F48A9040>,                          "scePaf_F48A9040",                        'i', ""   },
+	{0XFC5C8A32, &WrapI_V<scePaf_FC5C8A32>,                          "scePaf_FC5C8A32",                        'i', ""   },
+};
+
+
+const HLEModule moduleList[] =
 {
 	{"FakeSysCalls", ARRAY_SIZE(FakeSysCalls), FakeSysCalls},
 	{"UtilsForUser", ARRAY_SIZE(UtilsForUser), UtilsForUser},
@@ -298,6 +377,7 @@ void RegisterAllModules() {
 	RegisterHLEModule("LoadCoreForKernel", ARRAY_SIZE(LoadCoreForKernel), LoadCoreForKernel);
 	Register_IoFileMgrForKernel();
 	Register_LoadExecForKernel();
+	Register_InitForKernel();
 	Register_SysMemForKernel();
 	Register_sceMt19937();
 	Register_SysclibForKernel();
@@ -327,6 +407,10 @@ void RegisterAllModules() {
 	Register_sceReg();
 	// Not ready to enable this due to apparent softlocks in Patapon 3.
 	// Register_sceNpMatching2();
+
+	RegisterHLEModule("sceVshBridge", ARRAY_SIZE(sceVshBridge), sceVshBridge);
+	RegisterHLEModule("sceVshCommonUtil", ARRAY_SIZE(sceVshCommonUtil), sceVshCommonUtil);
+	RegisterHLEModule("scePaf", ARRAY_SIZE(scePaf), scePaf);
 
 	// add new modules here.
 }

@@ -110,6 +110,48 @@ u32 registeredExitCbId;
 u32 g_GPOBits;  // Really just 8 bits on the real hardware.
 u32 g_GPIBits;  // Really just 8 bits on the real hardware.
 
+static int kernelApplicationType = 0x200;
+static int kernelBootFrom = 0x20;
+static int kernelInitApitype = 0x110;
+static std::string kernelInitFileName;
+static u32 kernelInitFileNameAddr = 0;
+
+void __KernelSetInitExecValues(int applicationType, int bootFrom, int initApitype, const std::string &initFileName) {
+	kernelApplicationType = applicationType;
+	kernelBootFrom = bootFrom;
+	kernelInitApitype = initApitype;
+	kernelInitFileName = initFileName;
+
+	if (kernelInitFileNameAddr != 0 && __KernelIsRunning()) {
+		kernelMemory.Free(kernelInitFileNameAddr);
+	}
+	kernelInitFileNameAddr = 0;
+}
+
+int sceKernelApplicationType() {
+	return kernelApplicationType;
+}
+
+int sceKernelBootFrom() {
+	return kernelBootFrom;
+}
+
+int sceKernelInitApitype() {
+	return kernelInitApitype;
+}
+
+u32 sceKernelInitFileName() {
+	if (kernelInitFileNameAddr == 0 && !kernelInitFileName.empty() && __KernelIsRunning()) {
+		u32 size = (u32)kernelInitFileName.size() + 1;
+		kernelInitFileNameAddr = kernelMemory.Alloc(size, false, "KernelInitFileName");
+		if (kernelInitFileNameAddr != 0) {
+			memcpy(Memory::GetPointerWrite(kernelInitFileNameAddr), kernelInitFileName.c_str(), size);
+		}
+	}
+	return kernelInitFileNameAddr;
+}
+
+
 void __KernelInit()
 {
 	if (kernelRunning)
@@ -117,6 +159,7 @@ void __KernelInit()
 		ERROR_LOG(Log::sceKernel, "Can't init kernel when kernel is running");
 		return;
 	}
+
 	INFO_LOG(Log::sceKernel, "Initializing kernel...");
 
 	__KernelTimeInit();
@@ -968,6 +1011,19 @@ void Register_LoadExecForUser()
 	RegisterHLEModule("LoadExecForUser", ARRAY_SIZE(LoadExecForUser), LoadExecForUser);
 }
  
+const HLEFunction InitForKernel[] =
+{
+	{0x7233B5BC, &WrapI_V<sceKernelApplicationType>,                "sceKernelApplicationType",                'i', ""        },
+	{0x27932388, &WrapI_V<sceKernelBootFrom>,                       "sceKernelBootFrom",                       'i', ""        },
+	{0x7A2333AD, &WrapI_V<sceKernelInitApitype>,                    "sceKernelInitApitype",                    'i', ""        },
+	{0xA6E71B93, &WrapU_V<sceKernelInitFileName>,                   "sceKernelInitFileName",                   'x', ""        },
+};
+
+void Register_InitForKernel()
+{
+	RegisterHLEModule("InitForKernel", ARRAY_SIZE(InitForKernel), InitForKernel);
+}
+
 const HLEFunction LoadExecForKernel[] =
 {
 	{0x4AC57943, &WrapI_I<sceKernelRegisterExitCallback>,            "sceKernelRegisterExitCallback",             'i', "i",      HLE_KERNEL_SYSCALL },

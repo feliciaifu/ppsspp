@@ -47,6 +47,11 @@ namespace Draw {
 
 enum class CPUCore;
 
+enum class BootIntent {
+	GAME,
+	VSH,
+};
+
 // PSP_CoreParameter()
 struct CoreParameter {
 	CoreParameter() {}
@@ -61,6 +66,9 @@ struct CoreParameter {
 	Path mountIso;  // If non-empty, and fileToStart is an ELF or PBP, will mount this ISO in the background to umd1:.
 	Path mountRoot;  // If non-empty, and fileToStart is an ELF or PBP, mount this as host0: / umd0:.
 	std::string errorString;
+	BootIntent bootIntent = BootIntent::GAME;
+	int initApitype = 0x110;
+	int bootFrom = 0x20;
 
 	bool startBreak = false;
 	std::string *collectDebugOutput = nullptr;

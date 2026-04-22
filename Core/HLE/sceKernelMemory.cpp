@@ -1671,8 +1671,7 @@ static u32 SysMemUserForUser_D8DE5C1E() {
 }
 
 static u32 SysMemUserForUser_ACBD88CA() {
-	ERROR_LOG_REPORT_ONCE(SysMemUserForUser_ACBD88CA, Log::sceKernel, "UNIMPL SysMemUserForUser_ACBD88CA()");
-	return hleNoLog(0);
+	return hleNoLog(Memory::g_MemorySize);
 }
 
 static u32 SysMemUserForUser_945E45DA() {

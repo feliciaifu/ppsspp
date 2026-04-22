@@ -26,6 +26,7 @@
 #include "Common/UI/Screen.h"
 #include "Common/UI/UIScreen.h"
 #include "Common/UI/Tween.h"
+#include "Core/CoreParameter.h"
 #include "Core/KeyMap.h"
 #include "Core/ControlMapper.h"
 
@@ -39,6 +40,7 @@ class ChatMenu;
 class EmuScreen : public UIScreen {
 public:
 	EmuScreen(const Path &filename);
+	EmuScreen(const Path &filename, BootIntent bootIntent);
 	~EmuScreen();
 
 	const char *tag() const override { return "Emu"; }
@@ -99,6 +101,7 @@ private:
 	UI::Event OnChatMenu;
 	bool bootPending_ = true;
 	Path gamePath_;
+	BootIntent bootIntent_ = BootIntent::GAME;
 
 	bool quit_ = false;
 	std::string errorMessage_;

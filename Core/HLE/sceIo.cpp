@@ -665,6 +665,9 @@ void __IoInit() {
 	}
 
 	auto memstickSystem = std::make_shared<DirectoryFileSystem>(&pspFileSystem, g_Config.memStickDirectory, memstickFlags);
+	const Path flash1Dir = GetSysDirectory(DIRECTORY_SYSTEM) / "flash1";
+	File::CreateFullPath(flash1Dir);
+	auto flash1System = std::make_shared<DirectoryFileSystem>(&pspFileSystem, flash1Dir, FileSystemFlags::SIMULATE_FAT32 | FileSystemFlags::FLASH);
 
 	pspFileSystem.Mount("ms0:", memstickSystem);
 	pspFileSystem.Mount("fatms0:", memstickSystem);
@@ -672,6 +675,7 @@ void __IoInit() {
 	pspFileSystem.Mount("pfat0:", memstickSystem);
 
 	pspFileSystem.Mount("flash0:", flash0System);
+	pspFileSystem.Mount("flash1:", flash1System);
 
 	if (g_RemasterMode) {
 		const std::string gameId = g_paramSFO.GetDiscID();

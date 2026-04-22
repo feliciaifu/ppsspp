@@ -33,6 +33,7 @@ static bool usbStarted = false;
 static bool usbConnected = true;
 // TODO: Activation by product id
 static bool usbActivated = false;
+static SceUID usbCallbackId = -1;
 
 static int usbWaitTimer = -1;
 static std::vector<SceUID> waitingThreads;
@@ -118,6 +119,7 @@ void __UsbInit() {
 	usbStarted = false;
 	usbConnected = true;
 	usbActivated = false;
+	usbCallbackId = -1;
 	waitingThreads.clear();
 
 	usbWaitTimer = CoreTiming::RegisterEvent("UsbWaitTimeout", UsbWaitExecTimeout);
@@ -136,6 +138,7 @@ void __UsbDoState(PointerWrap &p) {
 		usbConnected = true;
 	}
 	Do(p, usbActivated);
+	Do(p, usbCallbackId);
 	if (s >= 3) {
 		Do(p, waitingThreads);
 		Do(p, usbWaitTimer);
@@ -206,6 +209,21 @@ static int sceUsbWaitStateCB(int state, u32 waitMode, u32 timeoutPtr) {
 	return 0;
 }
 
+static int sceUsb_8BFC3DE8(int callbackId, int unknown1, int unknown2) {
+	usbCallbackId = callbackId;
+	if (callbackId >= 0) {
+		__KernelNotifyCallback(callbackId, UsbCurrentState());
+	}
+	return hleNoLog(0);
+}
+
+static int sceUsb_89DE0DC5(int callbackId) {
+	if (usbCallbackId == callbackId) {
+		usbCallbackId = -1;
+	}
+	return hleNoLog(0);
+}
+
 static int sceUsbstorBootSetCapacity(u32 capacity) {
 	return hleReportError(Log::HLE, 0, "unimplemented");
 }
@@ -222,6 +240,8 @@ const HLEFunction sceUsb[] =
 	{0X5BE0E002, &WrapI_IUU<sceUsbWaitState>,        "sceUsbWaitState",                         'x', "xip"},
 	{0X616F2B61, &WrapI_IUU<sceUsbWaitStateCB>,      "sceUsbWaitStateCB",                       'x', "xip"},
 	{0X1C360735, nullptr,                            "sceUsbWaitCancel",                        '?', ""   },
+	{0X8BFC3DE8, &WrapI_III<sceUsb_8BFC3DE8>,        "sceUsb_8BFC3DE8",                         'i', "iii"},
+	{0X89DE0DC5, &WrapI_I<sceUsb_89DE0DC5>,          "sceUsb_89DE0DC5",                         'i', "i"  },
 };
 
 const HLEFunction sceUsbstor[] =

@@ -304,6 +304,7 @@ bool Load_PSP_ELF_PBP(FileLoader *fileLoader, std::string *error_string) {
 	Path full_path = fileLoader->GetPath();
 	std::string path = full_path.GetDirectory();
 	std::string file = full_path.GetFilename();
+	std::string finalName;
 
 	if (full_path.Type() == PathType::CONTENT_URI) {
 		path = AndroidContentURI(full_path.GetDirectory()).FilePath();
@@ -348,6 +349,15 @@ bool Load_PSP_ELF_PBP(FileLoader *fileLoader, std::string *error_string) {
 		path = rootNorm.ToString();
 		pspFileSystem.SetStartingDirectory(filepath);
 		dir = Path(path);
+		finalName = filepath + "/" + full_path.GetFilename();
+	} else if (full_path.StartsWith(g_Config.flash0Directory)) {
+		std::string flashPath = ReplaceAll(full_path.ToString().substr(g_Config.flash0Directory.ToString().size()), "\\", "/");
+		while (!flashPath.empty() && flashPath[0] == '/') {
+			flashPath.erase(0, 1);
+		}
+		pspFileSystem.SetStartingDirectory("flash0:/" + flashPath.substr(0, flashPath.find_last_of('/')));
+		finalName = "flash0:/" + flashPath;
+		dir = full_path.NavigateUp();
 	} else {
 		pspFileSystem.SetStartingDirectory(ms_path);
 		dir = full_path.NavigateUp();
@@ -356,7 +366,9 @@ bool Load_PSP_ELF_PBP(FileLoader *fileLoader, std::string *error_string) {
 	auto fs = std::make_shared<DirectoryFileSystem>(&pspFileSystem, dir, FileSystemFlags::SIMULATE_FAT32 | FileSystemFlags::CARD);
 	pspFileSystem.Mount("umd0:", fs);
 
-	std::string finalName = ms_path + file;
+	if (finalName.empty()) {
+		finalName = ms_path + file;
+	}
 
 	std::string homebrewName = PSP_CoreParameter().fileToStart.ToVisualString();
 	std::size_t lslash = homebrewName.find_last_of('/');

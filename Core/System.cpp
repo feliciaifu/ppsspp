@@ -542,6 +542,12 @@ bool PSP_InitStart(const CoreParameter &coreParam) {
 		Core_NotifyLifecycle(CoreLifecycle::STARTING);
 
 		Path filename = g_CoreParameter.fileToStart;
+		__KernelSetInitExecValues(
+			g_CoreParameter.bootIntent == BootIntent::VSH ? 0x100 : 0x200,
+			g_CoreParameter.bootFrom,
+			g_CoreParameter.initApitype,
+			filename.ToString()
+		);
 		FileLoader *loadedFile = ResolveFileLoaderTarget(ConstructFileLoader(filename));
 
 		IdentifiedFileType type = Identify_File(loadedFile, &g_CoreParameter.errorString);

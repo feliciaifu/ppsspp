@@ -50,6 +50,20 @@ enum class ValueType {
 	BIN = 4,
 };
 
+struct DynamicKeyValue {
+	ValueType type = ValueType::BIN;
+	std::string strValue;
+	int intValue = 0;
+
+	void DoState(PointerWrap &p) {
+		Do(p, type);
+		Do(p, strValue);
+		Do(p, intValue);
+	}
+};
+
+static std::map<std::string, std::map<std::string, DynamicKeyValue>> g_dynamicCategories;
+
 struct KeyValue {
 	std::string name;
 	ValueType type;
@@ -59,7 +73,44 @@ struct KeyValue {
 };
 
 
-// Dump of the PSP registry using tests/misc/reg.prx in pspautotests
+
+static std::string NormalizeRegPath(std::string_view path) {
+	std::string normalized;
+	normalized.reserve(path.size() + 1);
+	normalized.push_back('/');
+	if (!path.empty() && path.front() == '/') {
+		path.remove_prefix(1);
+	}
+	normalized.append(path.data(), path.size());
+	while (normalized.size() > 1 && normalized.back() == '/') {
+		normalized.pop_back();
+	}
+	return normalized;
+}
+
+static std::map<std::string, DynamicKeyValue> *LookupDynamicCategory(std::string_view path) {
+	auto iter = g_dynamicCategories.find(NormalizeRegPath(path));
+	return iter != g_dynamicCategories.end() ? &iter->second : nullptr;
+}
+
+static std::map<std::string, DynamicKeyValue> &EnsureDynamicCategory(std::string_view path) {
+	return g_dynamicCategories[NormalizeRegPath(path)];
+}
+
+static bool LookupDynamicValue(std::string_view path, std::string_view name, DynamicKeyValue *value) {
+	auto *category = LookupDynamicCategory(path);
+	if (!category) {
+		return false;
+	}
+	auto iter = category->find(std::string(name));
+	if (iter == category->end()) {
+		return false;
+	}
+	if (value) {
+		*value = iter->second;
+	}
+	return true;
+}
 
 // TODO: /DATA/FONT/PROPERTY could just be generated from our fontRegistry in sceFont.cpp.
 
@@ -490,13 +541,21 @@ void __RegInit() {
 	g_openRegistryMode = 0;
 	g_handleGen = 1337;
 	g_openCategories.clear();
+	g_dynamicCategories.clear();
+	EnsureDynamicCategory("/REGISTRY");
 }
 
 void __RegShutdown() {
 	g_openCategories.clear();
+	g_dynamicCategories.clear();
 }
 
 static const KeyValue *LookupCategory(std::string_view path, int *count) {
+	if (const auto *dynamicCategory = LookupDynamicCategory(path)) {
+		*count = (int)dynamicCategory->size();
+		return nullptr;
+	}
+
 	path = StripPrefix("/", path);
 	std::vector<std::string_view> parts;
 	SplitString(path, '/', parts);
@@ -532,11 +591,17 @@ static const KeyValue *LookupCategory(std::string_view path, int *count) {
 }
 
 void __RegDoState(PointerWrap &p) {
-	auto s = p.Section("sceReg", 0, 1);
+	auto s = p.Section("sceReg", 0, 2);
 	if (!s)
 		return;
 	Do(p, g_openRegistryMode);
 	Do(p, g_openCategories);
+	if (s >= 2) {
+		Do(p, g_dynamicCategories);
+	} else {
+		g_dynamicCategories.clear();
+		EnsureDynamicCategory("/REGISTRY");
+	}
 }
 
 // Registry level (it seems only /system can exist, so kinda pointless)
@@ -586,15 +651,15 @@ int sceRegOpenCategory(int regHandle, const char *name, int mode, u32 regHandleA
 		return hleLogError(Log::sceReg, SCE_REG_ERROR_INVALID_PATH);
 	}
 
+	const auto *dynamicCategory = LookupDynamicCategory(name);
 	int count = 0;
 	const KeyValue *keyvals = LookupCategory(name, &count);
-	if (!keyvals) {
+	if (!keyvals && !dynamicCategory) {
 		Memory::WriteUnchecked_U32(-1, regHandleAddr);
 		return hleLogError(Log::sceReg, SCE_REG_ERROR_CATEGORY_NOT_FOUND);
 	}
 
-	// Let's see if this category is marked as inaccessible (presumably from user mode)..
-	if (count == 1 && keyvals[0].type == ValueType::FAIL) {
+	if (keyvals && count == 1 && keyvals[0].type == ValueType::FAIL) {
 		const int errorCode = keyvals[0].intValue;
 		return hleLogWarning(Log::sceReg, errorCode, "Inaccessible category");
 	}
@@ -637,6 +702,11 @@ int sceRegGetKeysNum(int catHandle, u32 numAddr) {
 		return -1;
 	}
 
+	if (const auto *dynamicCategory = LookupDynamicCategory(iter->second.path)) {
+		Memory::WriteUnchecked_U32((u32)dynamicCategory->size(), numAddr);
+		return hleLogInfo(Log::sceReg, 0);
+	}
+
 	int count = 0;
 	const KeyValue *keyvals = LookupCategory(iter->second.path, &count);
 	if (!keyvals) {
@@ -658,7 +728,20 @@ int sceRegGetKeys(int catHandle, u32 bufAddr, int num) {
 		return hleLogError(Log::sceReg, -1, "bad output addr");
 	}
 
-	const int addrLen = 27;  // for some reason
+	const int addrLen = 27;
+	if (auto *dynamicCategory = LookupDynamicCategory(iter->second.path)) {
+		int i = 0;
+		for (auto dynIter = dynamicCategory->begin(); dynIter != dynamicCategory->end() && i < num; ++dynIter, ++i) {
+			char *dest = (char *)Memory::GetPointerWrite(bufAddr + i * addrLen);
+			strncpy(dest, dynIter->first.c_str(), addrLen - 1);
+			dest[addrLen - 1] = '\0';
+		}
+		for (; i < num; ++i) {
+			char *dest = (char *)Memory::GetPointerWrite(bufAddr + i * addrLen);
+			dest[0] = '\0';
+		}
+		return hleLogInfo(Log::sceReg, 0);
+	}
 
 	int count = 0;
 	const KeyValue *keyvals = LookupCategory(iter->second.path, &count);
@@ -667,10 +750,14 @@ int sceRegGetKeys(int catHandle, u32 bufAddr, int num) {
 	}
 
 	count = std::min(count, num);
-
-	for (int i = 0; i < num; i++) {
-		char *dest = (char *)Memory::GetPointerWrite(bufAddr + i * 27);
-		strncpy(dest, keyvals[i].name.c_str(), 27);
+	for (int i = 0; i < count; i++) {
+		char *dest = (char *)Memory::GetPointerWrite(bufAddr + i * addrLen);
+		strncpy(dest, keyvals[i].name.c_str(), addrLen - 1);
+		dest[addrLen - 1] = '\0';
+	}
+	for (int i = count; i < num; ++i) {
+		char *dest = (char *)Memory::GetPointerWrite(bufAddr + i * addrLen);
+		dest[0] = '\0';
 	}
 
 	return hleLogInfo(Log::sceReg, 0);
@@ -682,6 +769,21 @@ int sceRegGetKeyInfo(int catHandle, const char *name, u32 outKeyHandleAddr, u32 
 		return hleLogError(Log::sceReg, 0, "Not found");
 	}
 
+	DynamicKeyValue dynamicValue;
+	if (LookupDynamicValue(iter->second.path, name, &dynamicValue)) {
+		if (Memory::IsValid4AlignedAddress(outKeyHandleAddr)) {
+			Memory::WriteUnchecked_U32(0, outKeyHandleAddr);
+		}
+		if (Memory::IsValid4AlignedAddress(outTypeAddr)) {
+			Memory::WriteUnchecked_U32((int)dynamicValue.type, outTypeAddr);
+		}
+		if (Memory::IsValid4AlignedAddress(outSizeAddr)) {
+			int size = dynamicValue.type == ValueType::INT ? 4 : (int)dynamicValue.strValue.size() + (dynamicValue.type == ValueType::STR ? 1 : 0);
+			Memory::WriteUnchecked_U32(size, outSizeAddr);
+		}
+		return hleLogInfo(Log::sceReg, 0);
+	}
+
 	int count = 0;
 	const KeyValue *keyvals = LookupCategory(iter->second.path, &count);
 	if (!keyvals) {
@@ -690,13 +792,10 @@ int sceRegGetKeyInfo(int catHandle, const char *name, u32 outKeyHandleAddr, u32 
 
 	for (int i = 0; i < count; i++) {
 		if (equals(keyvals[i].name, name)) {
-			// Found it!
 			if (Memory::IsValid4AlignedAddress(outKeyHandleAddr)) {
-				// Let's just make the index the key handle.
 				Memory::WriteUnchecked_U32(i, outKeyHandleAddr);
 			}
 			if (Memory::IsValid4AlignedAddress(outTypeAddr)) {
-				// Let's just make the index the key handle.
 				Memory::WriteUnchecked_U32((int)keyvals[i].type, outTypeAddr);
 			}
 			int size = 0;
@@ -708,7 +807,6 @@ int sceRegGetKeyInfo(int catHandle, const char *name, u32 outKeyHandleAddr, u32 
 				case ValueType::INT: size = 4; break;
 				default: break;
 				}
-				// Let's just make the index the key handle.
 				Memory::WriteUnchecked_U32(size, outSizeAddr);
 			}
 			return hleLogInfo(Log::sceReg, 0, "handle: %d type: %d size: %d", i, (int)keyvals[i].type, size);
@@ -719,7 +817,7 @@ int sceRegGetKeyInfo(int catHandle, const char *name, u32 outKeyHandleAddr, u32 
 }
 
 int sceRegGetKeyInfoByName(int catHandle, const char *name, u32 typeAddr, u32 sizeAddr) {
-	return hleLogError(Log::sceReg, 0);
+	return sceRegGetKeyInfo(catHandle, name, 0, typeAddr, sizeAddr);
 }
 
 int sceRegGetKeyValue(int catHandle, int keyHandle, u32 bufAddr, u32 size) {
@@ -756,21 +854,99 @@ int sceRegGetKeyValue(int catHandle, int keyHandle, u32 bufAddr, u32 size) {
 	case ValueType::DIR:
 	case ValueType::FAIL:
 	default:
-		// Return an error?
 		return hleLogWarning(Log::sceReg, 0, "Unexpected type for sceRegGetKeyValue");
 	}
 }
 
 int sceRegGetKeyValueByName(int catHandle, const char *name, u32 bufAddr, u32 size) {
-	return hleLogError(Log::sceReg, 0);
+	auto iter = g_openCategories.find(catHandle);
+	if (iter == g_openCategories.end()) {
+		return hleLogError(Log::sceReg, 0, "Not found");
+	}
+
+	DynamicKeyValue dynamicValue;
+	if (LookupDynamicValue(iter->second.path, name, &dynamicValue)) {
+		switch (dynamicValue.type) {
+		case ValueType::INT:
+			if (!Memory::IsValid4AlignedAddress(bufAddr) || size < 4) {
+				return -1;
+			}
+			Memory::WriteUnchecked_U32(dynamicValue.intValue, bufAddr);
+			return hleLogInfo(Log::sceReg, 0, "value: %d (0x%08x)", dynamicValue.intValue, dynamicValue.intValue);
+		case ValueType::STR:
+			if (!Memory::IsValidRange(bufAddr, size)) {
+				return -1;
+			}
+			Memory::MemcpyUnchecked(bufAddr, dynamicValue.strValue.data(), std::min(size, (u32)dynamicValue.strValue.size() + 1));
+			return hleLogInfo(Log::sceReg, 0, "value: '%s'", dynamicValue.strValue.c_str());
+		case ValueType::BIN:
+			if (!Memory::IsValidRange(bufAddr, size)) {
+				return -1;
+			}
+			Memory::MemcpyUnchecked(bufAddr, dynamicValue.strValue.data(), std::min(size, (u32)dynamicValue.strValue.size()));
+			return hleLogInfo(Log::sceReg, 0);
+		default:
+			return hleLogWarning(Log::sceReg, 0, "Unexpected type for sceRegGetKeyValueByName");
+		}
+	}
+
+	int count = 0;
+	const KeyValue *keyvals = LookupCategory(iter->second.path, &count);
+	if (!keyvals) {
+		return hleLogWarning(Log::sceReg, SCE_REG_ERROR_CATEGORY_NOT_FOUND);
+	}
+
+	for (int i = 0; i < count; ++i) {
+		if (equals(keyvals[i].name, name)) {
+			return sceRegGetKeyValue(catHandle, i, bufAddr, size);
+		}
+	}
+
+	return hleLogWarning(Log::sceReg, -1, "key with name '%s' not found", name);
 }
 
 int sceRegSetKeyValue(int catHandle, const char *name, u32 bufAddr, u32 size) {
-	return hleLogError(Log::sceReg, 0);
+	auto iter = g_openCategories.find(catHandle);
+	if (iter == g_openCategories.end()) {
+		return hleLogError(Log::sceReg, 0, "Not found");
+	}
+	if (!name || !Memory::IsValidRange(bufAddr, size)) {
+		return hleLogError(Log::sceReg, -1, "bad address");
+	}
+
+	auto &category = EnsureDynamicCategory(iter->second.path);
+	DynamicKeyValue &value = category[name];
+	if (size == 4 && Memory::IsValid4AlignedAddress(bufAddr)) {
+		value.type = ValueType::INT;
+		value.intValue = (int)Memory::ReadUnchecked_U32(bufAddr);
+		value.strValue.clear();
+	} else {
+		value.type = ValueType::BIN;
+		value.strValue.resize(size);
+		Memory::MemcpyUnchecked(value.strValue.data(), bufAddr, size);
+		value.intValue = 0;
+	}
+	return hleLogInfo(Log::sceReg, 0, "key: %s size: %u", name, size);
 }
 
 int sceRegCreateKey(int catHandle, const char *name, int type, u32 size) {
-	return hleLogError(Log::sceReg, 0);
+	auto iter = g_openCategories.find(catHandle);
+	if (iter == g_openCategories.end()) {
+		return hleLogError(Log::sceReg, 0, "Not found");
+	}
+	if (!name) {
+		return hleLogError(Log::sceReg, SCE_REG_ERROR_INVALID_NAME);
+	}
+
+	auto &category = EnsureDynamicCategory(iter->second.path);
+	DynamicKeyValue &value = category[name];
+	value.type = (ValueType)type;
+	value.intValue = 0;
+	value.strValue.clear();
+	if (value.type == ValueType::BIN) {
+		value.strValue.resize(size);
+	}
+	return hleLogInfo(Log::sceReg, 0, "key: %s type: %d size: %u", name, type, size);
 }
 
 const HLEFunction sceReg[] = {

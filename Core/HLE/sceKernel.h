@@ -88,6 +88,12 @@ void __KernelDoState(PointerWrap &p);
 bool __KernelIsRunning();
 bool __KernelLoadExec(const char *filename, SceKernelLoadExecParam *param);
 
+void __KernelSetInitExecValues(int applicationType, int bootFrom, int initApitype, const std::string &initFileName);
+int sceKernelApplicationType();
+int sceKernelBootFrom();
+int sceKernelInitApitype();
+u32 sceKernelInitFileName();
+
 // For crash reporting.
 std::string __KernelStateSummary();
 
@@ -299,6 +305,7 @@ void Register_ThreadManForUser();
 void Register_ThreadManForKernel();
 void Register_LoadExecForUser();
 void Register_LoadExecForKernel();
+void Register_InitForKernel();
 void Register_UtilsForKernel();
 
 // returns nullptr if not found.

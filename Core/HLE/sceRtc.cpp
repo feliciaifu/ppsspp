@@ -37,6 +37,7 @@
 #include "Core/MemMapHelpers.h"
 
 #include "Core/HLE/sceKernel.h"
+#include "Core/HLE/sceKernelThread.h"
 #include "Core/HLE/sceRtc.h"
 
 #ifdef HAVE_LIBNX
@@ -68,6 +69,10 @@ const u64 rtcLastAdjustedTicks = rtcMagicOffset + 41 * 365 * 24 * 3600 * 1000000
 // The reincarnated time seems related to the battery or manufacturing date.
 // On a test PSP, it was over 3 years in the past, so we again pick a fixed date.
 const u64 rtcLastReincarnatedTicks = rtcMagicOffset + 40 * 365 * 24 * 3600 * 1000000ULL;
+
+static SceUID rtcCallbackId = -1;
+static bool rtcAlarmTickSet = false;
+static u64 rtcAlarmTick = 0;
 
 const int PSP_TIME_INVALID_YEAR = -1;
 const int PSP_TIME_INVALID_MONTH = -2;
@@ -151,17 +156,29 @@ void __RtcInit()
 	gettimeofday(&tv, NULL);
 	rtcBaseTime.tv_sec = tv.tv_sec;
 	rtcBaseTime.tv_usec = 0;
+	rtcCallbackId = -1;
+	rtcAlarmTickSet = false;
+	rtcAlarmTick = 0;
 	// Precalculate the current time in microseconds (rtcMagicOffset is offset to 1970.)
 	RtcUpdateBaseTicks();
 }
 
 void __RtcDoState(PointerWrap &p)
 {
-	auto s = p.Section("sceRtc", 1);
+	auto s = p.Section("sceRtc", 2);
 	if (!s)
 		return;
 
 	Do(p, rtcBaseTime);
+	if (s >= 2) {
+		Do(p, rtcCallbackId);
+		Do(p, rtcAlarmTickSet);
+		Do(p, rtcAlarmTick);
+	} else {
+		rtcCallbackId = -1;
+		rtcAlarmTickSet = false;
+		rtcAlarmTick = 0;
+	}
 	// Update the precalc, pointless to savestate this as it's just based on the other value.
 	RtcUpdateBaseTicks();
 }
@@ -818,11 +835,43 @@ static int sceRtcGetLastReincarnatedTime(u32 tickPtr)
 	return 0;
 }
 
-//Returns 0 on success, according to Project Diva 2nd jpcsptrace log
-static int sceRtcSetAlarmTick(u32 unknown1, u32 unknown2)
+static int sceRtcRegisterCallback(SceUID callbackId)
 {
-	ERROR_LOG_REPORT(Log::sceRtc, "UNIMPL sceRtcSetAlarmTick(%x, %x)", unknown1, unknown2);
-	return 0; 
+	rtcCallbackId = callbackId;
+	if (callbackId >= 0) {
+		__KernelNotifyCallback(callbackId, 0);
+	}
+	return hleLogInfo(Log::sceRtc, 0, "callback: %08x", callbackId);
+}
+
+static int sceRtcUnregisterCallback(SceUID callbackId)
+{
+	if (rtcCallbackId == callbackId) {
+		rtcCallbackId = -1;
+	}
+	return hleLogInfo(Log::sceRtc, 0, "callback: %08x", callbackId);
+}
+
+// Returns 0 on success. Jpcsp also accepts this as a no-fail VSH-facing call.
+static int sceRtcSetAlarmTick(u32 tickPtr, u32 unused)
+{
+	auto tick = PSPPointer<u64_le>::Create(tickPtr);
+	if (!tick.IsValid())
+		return hleLogError(Log::sceRtc, 0, "bad address");
+
+	rtcAlarmTick = *tick;
+	rtcAlarmTickSet = true;
+	return hleLogDebug(Log::sceRtc, 0, "%016llx", (unsigned long long)rtcAlarmTick);
+}
+
+static int sceRtcGetAlarmTick(u32 tickPtr)
+{
+	auto tick = PSPPointer<u64_le>::Create(tickPtr);
+	if (!tick.IsValid())
+		return hleLogError(Log::sceRtc, 0, "bad address");
+
+	*tick = rtcAlarmTickSet ? rtcAlarmTick : 0;
+	return hleLogDebug(Log::sceRtc, 0, "%016llx", (unsigned long long)*tick);
 }
 
 // Caller must check outPtr and srcTickPtr.
@@ -1008,9 +1057,9 @@ const HLEFunction sceRtc[] =
 	{0X7D1FBED3, &WrapI_UU<sceRtcSetAlarmTick>,            "sceRtcSetAlarmTick",             'i', "xx" },
 	{0XF5FCC995, nullptr,                                  "sceRtcGetCurrentNetworkTick",    '?', ""   },
 	{0X81FCDA34, nullptr,                                  "sceRtcIsAlarmed",                '?', ""   },
-	{0XFB3B18CD, nullptr,                                  "sceRtcRegisterCallback",         '?', ""   },
-	{0X6A676D2D, nullptr,                                  "sceRtcUnregisterCallback",       '?', ""   },
-	{0XC2DDBEB5, nullptr,                                  "sceRtcGetAlarmTick",             '?', ""   },
+	{0XFB3B18CD, &WrapI_I<sceRtcRegisterCallback>,         "sceRtcRegisterCallback",         'i', "i"  },
+	{0X6A676D2D, &WrapI_I<sceRtcUnregisterCallback>,       "sceRtcUnregisterCallback",       'i', "i"  },
+	{0XC2DDBEB5, &WrapI_U<sceRtcGetAlarmTick>,             "sceRtcGetAlarmTick",             'i', "x"  },
 };
 
 void Register_sceRtc()
