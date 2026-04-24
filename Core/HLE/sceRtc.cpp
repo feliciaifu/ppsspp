@@ -335,7 +335,7 @@ static u32 sceRtcGetCurrentClock(u32 pspTimePtr, int tz) {
 
 	hleEatCycles(1900);
 	hleReSchedule("rtc current clock");
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static u32 sceRtcGetCurrentClockLocalTime(u32 pspTimePtr) {
@@ -357,7 +357,7 @@ static u32 sceRtcGetCurrentClockLocalTime(u32 pspTimePtr) {
 
 	hleEatCycles(2000);
 	hleReSchedule("rtc current clock local");
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static u32 sceRtcSetTick(u32 pspTimePtr, u32 tickPtr) {
@@ -368,7 +368,7 @@ static u32 sceRtcSetTick(u32 pspTimePtr, u32 tickPtr) {
 		return hleLogError(Log::sceRtc, 0, "bad address");
 
 	__RtcTicksToPspTime(*pt, *tick);
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static u32 sceRtcGetTick(u32 pspTimePtr, u32 tickPtr) {
@@ -381,12 +381,11 @@ static u32 sceRtcGetTick(u32 pspTimePtr, u32 tickPtr) {
 		return hleLogWarning(Log::sceRtc, SCE_KERNEL_ERROR_INVALID_VALUE, "invalid time");
 
 	*tick = __RtcPspTimeToTicks(*pt);
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static u32 sceRtcGetDayOfWeek(u32 year, u32 month, u32 day)
 {
-	DEBUG_LOG(Log::sceRtc, "sceRtcGetDayOfWeek(%d, %d, %d)", year, month, day);
 
 	if(month == 0)	// Mark month 0 as august, don't know why, but works
 	{
@@ -531,7 +530,7 @@ static int sceRtcSetTime_t(u32 datePtr, u32 time) {
 		return hleLogError(Log::sceRtc, 1, "bad address");
 
 	__RtcTicksToPspTime(*pt, time * 1000000ULL + rtcMagicOffset);
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcSetTime64_t(u32 datePtr, u64 time) {
@@ -540,7 +539,7 @@ static int sceRtcSetTime64_t(u32 datePtr, u64 time) {
 		return hleLogError(Log::sceRtc, 1, "bad address");
 
 	__RtcTicksToPspTime(*pt, time * 1000000ULL + rtcMagicOffset);
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcGetTime_t(u32 datePtr, u32 timePtr) {
@@ -550,7 +549,7 @@ static int sceRtcGetTime_t(u32 datePtr, u32 timePtr) {
 		return hleLogError(Log::sceRtc, 1, "bad address");
 
 	*timep = (u32)((__RtcPspTimeToTicks(*pt) - rtcMagicOffset) / 1000000ULL);
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcGetTime64_t(u32 datePtr, u32 timePtr) {
@@ -560,7 +559,7 @@ static int sceRtcGetTime64_t(u32 datePtr, u32 timePtr) {
 		return hleLogError(Log::sceRtc, 1, "bad address");
 
 	*timep = (__RtcPspTimeToTicks(*pt) - rtcMagicOffset) / 1000000ULL;
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcSetDosTime(u32 datePtr, u32 dosTime) {
@@ -579,7 +578,7 @@ static int sceRtcSetDosTime(u32 datePtr, u32 dosTime) {
 	pt->second = (hms << 1) & 0x3E;
 	pt->microsecond = 0;
 
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcGetDosTime(u32 datePtr, u32 dosTime) {
@@ -606,7 +605,7 @@ static int sceRtcGetDosTime(u32 datePtr, u32 dosTime) {
 	int hms = hour | minute | second;
 
 	*dosp = (ymd << 16) | hms;
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcSetWin32FileTime(u32 datePtr, u64 win32Time)
@@ -674,7 +673,7 @@ static int sceRtcTickAddTicks(u32 destTickPtr, u32 srcTickPtr, u64 numTicks)
 		srcTick += numTicks;
 		Memory::Write_U64(srcTick, destTickPtr);
 	}
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcTickAddMicroseconds(u32 destTickPtr,u32 srcTickPtr, u64 numMS)
@@ -686,7 +685,7 @@ static int sceRtcTickAddMicroseconds(u32 destTickPtr,u32 srcTickPtr, u64 numMS)
 		srcTick += numMS;
 		Memory::Write_U64(srcTick, destTickPtr);
 	}
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcTickAddSeconds(u32 destTickPtr, u32 srcTickPtr, u64 numSecs)
@@ -698,7 +697,7 @@ static int sceRtcTickAddSeconds(u32 destTickPtr, u32 srcTickPtr, u64 numSecs)
 		srcTick += numSecs * 1000000UL;
 		Memory::Write_U64(srcTick, destTickPtr);
 	}
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcTickAddMinutes(u32 destTickPtr, u32 srcTickPtr, u64 numMins)
@@ -710,7 +709,7 @@ static int sceRtcTickAddMinutes(u32 destTickPtr, u32 srcTickPtr, u64 numMins)
 		srcTick += numMins*60000000UL;
 		Memory::Write_U64(srcTick, destTickPtr);
 	}
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcTickAddHours(u32 destTickPtr, u32 srcTickPtr, int numHours)
@@ -721,7 +720,7 @@ static int sceRtcTickAddHours(u32 destTickPtr, u32 srcTickPtr, int numHours)
 		srcTick += numHours * 3600ULL * 1000000ULL;
 		Memory::Write_U64(srcTick, destTickPtr);
 	}
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcTickAddDays(u32 destTickPtr, u32 srcTickPtr, int numDays)
@@ -733,7 +732,7 @@ static int sceRtcTickAddDays(u32 destTickPtr, u32 srcTickPtr, int numDays)
 		srcTick += numDays * 86400ULL * 1000000ULL;
 		Memory::Write_U64(srcTick, destTickPtr);
 	}
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcTickAddWeeks(u32 destTickPtr, u32 srcTickPtr, int numWeeks)
@@ -745,7 +744,7 @@ static int sceRtcTickAddWeeks(u32 destTickPtr, u32 srcTickPtr, int numWeeks)
 		srcTick += numWeeks * 7ULL * 86400ULL * 1000000ULL;
 		Memory::Write_U64(srcTick, destTickPtr);
 	}
-	return hleLogDebug(Log::sceRtc, 0);
+	return hleNoLog(0);
 }
 
 static int sceRtcTickAddMonths(u32 destTickPtr, u32 srcTickPtr, int numMonths)

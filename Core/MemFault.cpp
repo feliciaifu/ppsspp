@@ -35,6 +35,7 @@
 #endif
 
 #include "Common/Log.h"
+#include "Common/LogReporting.h"
 #include "Core/Config.h"
 #include "Core/Core.h"
 #include "Core/MemFault.h"
@@ -277,7 +278,7 @@ bool HandleFault(uintptr_t hostAddress, void *ctx) {
 		// Move on to the next instruction. Note that handling bad accesses like this is pretty slow.
 		context->CTX_PC += info.instructionSize;
 		g_numReportedBadAccesses++;
-		if (g_numReportedBadAccesses < 100) {
+		if (Reporting::ShouldLogNTimes("bad_memory_access_ignored", 5)) {
 			ERROR_LOG(Log::MemMap, "Bad memory access detected and ignored: %08x (%p)", guestAddress, (void *)hostAddress);
 		}
 	} else {

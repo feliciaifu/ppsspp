@@ -223,6 +223,15 @@ VSH_STUB(sceVshCommonUtil_649C3568)
 VSH_STUB(scePaf_03B20F85)
 VSH_STUB(scePaf_30AF7A24)
 VSH_STUB(scePaf_44AE2A91)
+VSH_STUB(scePaf_4CA9F1A7)
+VSH_STUB(scePaf_4CF09BA2)
+VSH_STUB(scePaf_4CFAB8D4)
+VSH_STUB(scePaf_4D45C2CF)
+VSH_STUB(scePaf_4F7B8133)
+VSH_STUB(scePaf_505EA775)
+VSH_STUB(scePaf_512737D3)
+VSH_STUB(scePaf_537B3828)
+VSH_STUB(scePaf_53B0C35F)
 VSH_STUB(scePaf_5476FD2B)
 VSH_STUB(scePaf_5CC6AA3C)
 VSH_STUB(scePaf_5E909060)
@@ -266,6 +275,15 @@ const HLEFunction scePaf[] =
 	{0X03B20F85, &WrapI_V<scePaf_03B20F85>,                          "scePaf_03B20F85",                        'i', ""   },
 	{0X30AF7A24, &WrapI_V<scePaf_30AF7A24>,                          "scePaf_30AF7A24",                        'i', ""   },
 	{0X44AE2A91, &WrapI_V<scePaf_44AE2A91>,                          "scePaf_44AE2A91",                        'i', ""   },
+	{0X4CA9F1A7, &WrapI_V<scePaf_4CA9F1A7>,                          "scePaf_4CA9F1A7",                        'i', ""   },
+	{0X4CF09BA2, &WrapI_V<scePaf_4CF09BA2>,                          "scePaf_4CF09BA2",                        'i', ""   },
+	{0X4CFAB8D4, &WrapI_V<scePaf_4CFAB8D4>,                          "scePaf_4CFAB8D4",                        'i', ""   },
+	{0X4D45C2CF, &WrapI_V<scePaf_4D45C2CF>,                          "scePaf_4D45C2CF",                        'i', ""   },
+	{0X4F7B8133, &WrapI_V<scePaf_4F7B8133>,                          "scePaf_4F7B8133",                        'i', ""   },
+	{0X505EA775, &WrapI_V<scePaf_505EA775>,                          "scePaf_505EA775",                        'i', ""   },
+	{0X512737D3, &WrapI_V<scePaf_512737D3>,                          "scePaf_512737D3",                        'i', ""   },
+	{0X537B3828, &WrapI_V<scePaf_537B3828>,                          "scePaf_537B3828",                        'i', ""   },
+	{0X53B0C35F, &WrapI_V<scePaf_53B0C35F>,                          "scePaf_53B0C35F",                        'i', ""   },
 	{0X5476FD2B, &WrapI_V<scePaf_5476FD2B>,                          "scePaf_5476FD2B",                        'i', ""   },
 	{0X5CC6AA3C, &WrapI_V<scePaf_5CC6AA3C>,                          "scePaf_5CC6AA3C",                        'i', ""   },
 	{0X5E909060, &WrapI_V<scePaf_5E909060>,                          "scePaf_5E909060",                        'i', ""   },

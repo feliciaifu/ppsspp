@@ -25,7 +25,9 @@
 #include "Common/Profiler/Profiler.h"
 
 #include "Common/Log.h"
+#include "Common/LogReporting.h"
 #include "Common/Serialize/SerializeFuncs.h"
+#include "Common/StringUtils.h"
 #include "Common/TimeUtil.h"
 #include "Core/Config.h"
 #include "Core/Core.h"
@@ -903,7 +905,11 @@ const HLEFunction *GetSyscallFuncPointer(MIPSOpcode op) {
 	int modulenum = (callno & 0xFF000) >> 12;
 	if (funcnum == 0xfff) {
 		std::string_view modName = modulenum > (int)moduleDB.size() ? "(unknown)" : moduleDB[modulenum].name;
-		ERROR_LOG(Log::HLE, "Unknown syscall: Module: '%.*s' (module: %d func: %d)", (int)modName.size(), modName.data(), modulenum, funcnum);
+		std::string modNameCopy(modName);
+		std::string logKey = StringFromFormat("unknown_syscall_%d_%d", modulenum, funcnum);
+		if (Reporting::ShouldLogNTimes(logKey.c_str(), 5)) {
+			ERROR_LOG(Log::HLE, "Unknown syscall: Module: '%s' (module: %d func: %d)", modNameCopy.c_str(), modulenum, funcnum);
+		}
 		return NULL;
 	}
 	if (modulenum >= (int)moduleDB.size()) {

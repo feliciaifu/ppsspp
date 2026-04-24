@@ -97,6 +97,27 @@ static std::map<std::string, DynamicKeyValue> &EnsureDynamicCategory(std::string
 	return g_dynamicCategories[NormalizeRegPath(path)];
 }
 
+static void SeedRegistryDefaults() {
+	auto &registry = EnsureDynamicCategory("/REGISTRY");
+	registry["category_version"] = { ValueType::INT, "", 1 };
+
+	EnsureDynamicCategory("/CONFIG/BROWSER");
+
+	auto &xmb = EnsureDynamicCategory("/CONFIG/SYSTEM/XMB");
+	xmb["language"] = { ValueType::INT, "", 1 };
+	xmb["button_assign"] = { ValueType::INT, "", 0 };
+
+	auto &theme = EnsureDynamicCategory("/CONFIG/SYSTEM/XMB/THEME");
+	theme["wallpaper_mode"] = { ValueType::INT, "", 0 };
+	theme["custom_theme_mode"] = { ValueType::INT, "", 0 };
+	theme["color_mode"] = { ValueType::INT, "", 0 };
+	theme["system_color"] = { ValueType::INT, "", 0 };
+
+	auto &charset = EnsureDynamicCategory("/CONFIG/SYSTEM/CHARACTER_SET");
+	charset["oem"] = { ValueType::INT, "", 5 };
+	charset["ansi"] = { ValueType::INT, "", 0x13 };
+}
+
 static bool LookupDynamicValue(std::string_view path, std::string_view name, DynamicKeyValue *value) {
 	auto *category = LookupDynamicCategory(path);
 	if (!category) {
@@ -542,7 +563,7 @@ void __RegInit() {
 	g_handleGen = 1337;
 	g_openCategories.clear();
 	g_dynamicCategories.clear();
-	EnsureDynamicCategory("/REGISTRY");
+	SeedRegistryDefaults();
 }
 
 void __RegShutdown() {
@@ -600,7 +621,7 @@ void __RegDoState(PointerWrap &p) {
 		Do(p, g_dynamicCategories);
 	} else {
 		g_dynamicCategories.clear();
-		EnsureDynamicCategory("/REGISTRY");
+		SeedRegistryDefaults();
 	}
 }
 
