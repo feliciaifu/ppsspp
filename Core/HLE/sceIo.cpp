@@ -1196,10 +1196,15 @@ static bool __IoWrite(int &result, int id, u32 data_addr, int size, int &us) {
 		us = 100;
 	}
 
-	const void *data_ptr = Memory::GetPointer(data_addr);
-	const u32 validSize = Memory::ValidSize(data_addr, size);
+	const bool zeroSize = size == 0;
+	const void *data_ptr = zeroSize ? nullptr : Memory::GetPointer(data_addr);
+	const u32 validSize = zeroSize ? 0 : Memory::ValidSize(data_addr, size);
 	// Let's handle stdout/stderr specially.
 	if (id == PSP_STDOUT || id == PSP_STDERR) {
+		if (zeroSize) {
+			result = 0;
+			return true;
+		}
 		const char *str = (const char *) data_ptr;
 		const int str_size = size <= 0 ? 0 : (str[validSize - 1] == '\n' ? validSize - 1 : validSize);
 		// buffer so we can edit the string.
@@ -1222,6 +1227,10 @@ static bool __IoWrite(int &result, int id, u32 data_addr, int size, int &us) {
 		}
 		if (size < 0) {
 			result = SCE_KERNEL_ERROR_ILLEGAL_ADDR;
+			return true;
+		}
+		if (zeroSize) {
+			result = 0;
 			return true;
 		}
 

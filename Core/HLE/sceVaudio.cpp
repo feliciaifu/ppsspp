@@ -70,6 +70,7 @@ static u32 sceVaudioChRelease() {
 		g_audioChans[PSP_AUDIO_CHANNEL_VAUDIO].reset();
 		g_audioChans[PSP_AUDIO_CHANNEL_VAUDIO].reserved = false;
 		vaudioReserved = false;
+		__AudioSetSRCFrequency(44100);
 		return 0;
 	}
 }
@@ -89,7 +90,7 @@ static u32 sceVaudioSetEffectType(int effectType, int vol) {
 }
 
 static u32 sceVaudioSetAlcMode(int alcMode) {
-	ERROR_LOG_REPORT(Log::sceAudio, "UNIMPL sceVaudioSetAlcMode(%i)", alcMode);
+	DEBUG_LOG(Log::sceAudio, "sceVaudioSetAlcMode(%i)", alcMode);
 	return 0;
 }
 

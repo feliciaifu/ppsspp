@@ -460,6 +460,65 @@ void __KernelModuleShutdown()
 // Sometimes there are multiple LO16's or HI16's per pair, even though the ABI says nothing of this.
 // For multiple LO16's, we need the original (unrelocated) instruction data of the HI16.
 // For multiple HI16's, we just need to set each one.
+static u32 GetSyntheticExportVarAddress(const VarSymbolImport &var) {
+	auto ensureBlock = [](u32 &addr, const char *tag) {
+		if (addr != 0 && Memory::IsValidAddress(addr)) {
+			return addr;
+		}
+
+		u32 allocSize = 0x100;
+		addr = userMemory.Alloc(allocSize, false, tag);
+		if (addr != 0 && Memory::IsValidRange(addr, allocSize)) {
+			u8 *ptr = Memory::GetPointerWriteUnchecked(addr);
+			memset(ptr, 0, allocSize);
+			Memory::Write_U32(addr + 0x00, addr + 0x10);
+			Memory::Write_U32(addr + 0x04, addr + 0x14);
+			Memory::Write_U32(addr + 0x08, addr + 0x18);
+			Memory::Write_U32(addr + 0x0C, addr + 0x1C);
+			Memory::Write_U32(addr + 0x10, addr + 0x20);
+			Memory::Write_U32(addr + 0x14, addr + 0x24);
+			Memory::Write_U32(addr + 0x18, addr + 0x28);
+			Memory::Write_U32(addr + 0x1C, addr + 0x2C);
+			Memory::Write_U32(addr + 0x20, addr + 0x30);
+			Memory::Write_U32(addr + 0x24, addr + 0x34);
+			Memory::Write_U32(addr + 0x28, addr + 0x38);
+		}
+		return addr;
+	};
+
+	if (strncmp(var.moduleName, "scePaf", KERNELOBJECT_MAX_NAME_LENGTH) == 0) {
+		static u32 varE9FDE3C4 = 0;
+		static u32 var421A7BDD = 0;
+		static u32 var5F14B3D1 = 0;
+		static u32 varB52933D3 = 0;
+		static u32 varB6D4F51A = 0;
+		static u32 varDACB88BF = 0;
+		switch (var.nid) {
+		case 0xE9FDE3C4:
+			return ensureBlock(varE9FDE3C4, "scePaf_E9FDE3C4");
+		case 0x421A7BDD:
+			return ensureBlock(var421A7BDD, "scePaf_421A7BDD");
+		case 0x5F14B3D1:
+			return ensureBlock(var5F14B3D1, "scePaf_5F14B3D1");
+		case 0xB52933D3:
+			return ensureBlock(varB52933D3, "scePaf_B52933D3");
+		case 0xB6D4F51A:
+			return ensureBlock(varB6D4F51A, "scePaf_B6D4F51A");
+		case 0xDACB88BF:
+			return ensureBlock(varDACB88BF, "scePaf_DACB88BF");
+		default:
+			break;
+		}
+	} else if (strncmp(var.moduleName, "sceVshCommonUtil", KERNELOBJECT_MAX_NAME_LENGTH) == 0) {
+		static u32 var241179D3 = 0;
+		if (var.nid == 0x241179D3) {
+			return ensureBlock(var241179D3, "sceVshCommonUtil_241179D3");
+		}
+	}
+
+	return 0;
+}
+
 struct HI16RelocInfo {
 	u32 addr;
 	u32 data;
@@ -598,6 +657,13 @@ void ImportVarSymbol(WriteVarSymbolState &state, const VarSymbolImport &var) {
 		}
 	}
 
+	const u32 syntheticAddr = GetSyntheticExportVarAddress(var);
+	if (syntheticAddr != 0) {
+		WriteVarSymbol(state, syntheticAddr, var.stubAddr, var.type);
+		INFO_LOG(Log::Loader, "Variable (%s,%08x) synthesized at %08x", var.moduleName, var.nid, syntheticAddr);
+		return;
+	}
+
 	// It hasn't been exported yet, but hopefully it will later.
 	INFO_LOG(Log::Loader, "Variable (%s,%08x) unresolved, storing for later resolving", var.moduleName, var.nid);
 }
@@ -650,6 +716,15 @@ static bool FuncImportIsHLE(std::string_view module, u32 nid) {
 	return GetHLEFunc(module, nid) != nullptr;
 }
 
+static bool ShouldReturnZeroForUnknownImport(std::string_view moduleName) {
+	return moduleName == "sceVshBridge" || moduleName == "sceVshCommonUtil";
+}
+
+static void WriteFuncReturnZeroStub(u32 stubAddr) {
+	Memory::Write_U32(MIPS_MAKE_JR_RA(), stubAddr);
+	Memory::Write_U32(MIPS_MAKE_ADDIU(MIPS_REG_V0, MIPS_REG_ZERO, 0), stubAddr + 4);
+}
+
 void ImportFuncSymbol(const FuncSymbolImport &func, bool reimporting, const char *importingModule) {
 	bool shouldHLE = ShouldHLEModuleByImportName(func.moduleName);
 
@@ -692,6 +767,12 @@ void ImportFuncSymbol(const FuncSymbolImport &func, bool reimporting, const char
 
 	// It hasn't been exported yet, but hopefully it will later. Check if we know about it through HLE.
 	if (shouldHLE) {
+		if (ShouldReturnZeroForUnknownImport(func.moduleName)) {
+			WriteFuncReturnZeroStub(func.stubAddr);
+			currentMIPS->InvalidateICache(func.stubAddr, 8);
+			WARN_LOG(Log::Loader, "Unknown syscall from known HLE module '%s': 0x%08x (import for '%s'), patched as return 0", func.moduleName, func.nid, importingModule);
+			return;
+		}
 		// We used to report this, but I don't think it's very interesting anymore.
 		WARN_LOG(Log::Loader, "Unknown syscall from known HLE module '%s': 0x%08x (import for '%s')", func.moduleName, func.nid, importingModule);
 	} else {

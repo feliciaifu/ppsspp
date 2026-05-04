@@ -4,6 +4,8 @@
 #include "Core/HLE/HLE.h"
 #include "Core/HLE/FunctionWrappers.h"
 #include "Core/HLE/ErrorCodes.h"
+#include "Core/System.h"
+#include "Common/File/FileUtil.h"
 #include "Common/Serialize/Serializer.h"
 #include "Common/Serialize/SerializeMap.h"
 #include "Common/StringUtils.h"
@@ -97,11 +99,24 @@ static std::map<std::string, DynamicKeyValue> &EnsureDynamicCategory(std::string
 	return g_dynamicCategories[NormalizeRegPath(path)];
 }
 
+static void EnsureFlash1RegistryInitDat() {
+	const Path initDatPath = GetSysDirectory(DIRECTORY_SYSTEM) / "flash1/registry/init.dat";
+	if (File::Exists(initDatPath)) {
+		return;
+	}
+
+	File::CreateFullPath(initDatPath.NavigateUp());
+	if (FILE *fp = File::OpenCFile(initDatPath, "wb")) {
+		fclose(fp);
+	}
+}
+
 static void SeedRegistryDefaults() {
 	auto &registry = EnsureDynamicCategory("/REGISTRY");
 	registry["category_version"] = { ValueType::INT, "", 1 };
 
 	EnsureDynamicCategory("/CONFIG/BROWSER");
+	EnsureDynamicCategory("/CONFIG/LFTV");
 
 	auto &xmb = EnsureDynamicCategory("/CONFIG/SYSTEM/XMB");
 	xmb["language"] = { ValueType::INT, "", 1 };
@@ -112,6 +127,14 @@ static void SeedRegistryDefaults() {
 	theme["custom_theme_mode"] = { ValueType::INT, "", 0 };
 	theme["color_mode"] = { ValueType::INT, "", 0 };
 	theme["system_color"] = { ValueType::INT, "", 0 };
+
+	auto &lock = EnsureDynamicCategory("/CONFIG/SYSTEM/LOCK");
+	lock["parental_level"] = { ValueType::INT, "", 0 };
+	lock["browser_start"] = { ValueType::INT, "", 0 };
+	lock["password"] = { ValueType::BIN, "0000", 0 };
+
+	auto &networkInfrastructure = EnsureDynamicCategory("/CONFIG/NETWORK/INFRASTRUCTURE");
+	networkInfrastructure["latest_id"] = { ValueType::INT, "", 0 };
 
 	auto &charset = EnsureDynamicCategory("/CONFIG/SYSTEM/CHARACTER_SET");
 	charset["oem"] = { ValueType::INT, "", 5 };
@@ -563,6 +586,7 @@ void __RegInit() {
 	g_handleGen = 1337;
 	g_openCategories.clear();
 	g_dynamicCategories.clear();
+	EnsureFlash1RegistryInitDat();
 	SeedRegistryDefaults();
 }
 
@@ -653,7 +677,11 @@ int sceRegFlushRegistry(int regHandle) {
 
 // Seems dangerous! Have not dared to test this on hardware.
 int sceRegRemoveRegistry(u32 regParamAddr) {
-	return hleLogError(Log::sceReg, 0, "UNIMPL");
+	g_openCategories.clear();
+	g_dynamicCategories.clear();
+	EnsureFlash1RegistryInitDat();
+	SeedRegistryDefaults();
+	return hleLogInfo(Log::sceReg, 0);
 }
 
 int sceRegOpenCategory(int regHandle, const char *name, int mode, u32 regHandleAddr) {
@@ -672,9 +700,16 @@ int sceRegOpenCategory(int regHandle, const char *name, int mode, u32 regHandleA
 		return hleLogError(Log::sceReg, SCE_REG_ERROR_INVALID_PATH);
 	}
 
-	const auto *dynamicCategory = LookupDynamicCategory(name);
+	std::string normalizedPath = NormalizeRegPath(name);
+	const auto *dynamicCategory = LookupDynamicCategory(normalizedPath);
 	int count = 0;
-	const KeyValue *keyvals = LookupCategory(name, &count);
+	const KeyValue *keyvals = LookupCategory(normalizedPath, &count);
+	if (!keyvals && !dynamicCategory && mode == 1) {
+		if (normalizedPath == "/CONFIG" || normalizedPath.rfind("/CONFIG/", 0) == 0) {
+			EnsureDynamicCategory(normalizedPath);
+			dynamicCategory = LookupDynamicCategory(normalizedPath);
+		}
+	}
 	if (!keyvals && !dynamicCategory) {
 		Memory::WriteUnchecked_U32(-1, regHandleAddr);
 		return hleLogError(Log::sceReg, SCE_REG_ERROR_CATEGORY_NOT_FOUND);
@@ -686,7 +721,7 @@ int sceRegOpenCategory(int regHandle, const char *name, int mode, u32 regHandleA
 	}
 
 	int handle = g_handleGen++;
-	OpenCategory cat{ name, mode };
+	OpenCategory cat{ normalizedPath, mode };
 	g_openCategories[handle] = cat;
 	Memory::WriteUnchecked_U32(handle, regHandleAddr);
 	return hleLogInfo(Log::sceReg, 0, "open handle: %d", handle);
@@ -708,7 +743,11 @@ int sceRegRemoveCategory(int regHandle, const char *name) {
 }
 
 int sceRegFlushCategory(int regHandle) {
-	return hleLogError(Log::sceReg, 0, "UNIMPL");
+	auto iter = g_openCategories.find(regHandle);
+	if (iter == g_openCategories.end()) {
+		return 0;
+	}
+	return 0;
 }
 
 // Key level

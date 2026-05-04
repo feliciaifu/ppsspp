@@ -18,6 +18,7 @@
 #include "Core/HLE/HLE.h"
 #include "Core/HLE/HLETables.h"
 #include "Core/HLE/FunctionWrappers.h"
+#include "Core/MemMap.h"
 
 #include "sceAtrac.h"
 #include "sceAudio.h"
@@ -205,12 +206,58 @@ const HLEFunction pspeDebug[] =
 
 #define VSH_STUB(name) static int name() { return hleNoLog(0); }
 
+static u32 scePafMemset(u32 dst, int value, u32 size) {
+	if (Memory::IsValidRange(dst, size)) {
+		memset(Memory::GetPointerWriteUnchecked(dst), value & 0xFF, size);
+	}
+	return dst;
+}
+
+static u32 scePafAllocStubBlock(const char *tag) {
+	u32 size = 0x100;
+	u32 addr = userMemory.Alloc(size, false, tag);
+	if (addr != 0 && Memory::IsValidRange(addr, size)) {
+		memset(Memory::GetPointerWriteUnchecked(addr), 0, size);
+	}
+	return addr;
+}
+
+static u32 scePafAllocStubContextBlock(const char *tag) {
+	u32 addr = scePafAllocStubBlock(tag);
+	if (addr != 0 && Memory::IsValidRange(addr, 0x40)) {
+		Memory::Write_U32(addr + 0x00, addr + 0x10);
+		Memory::Write_U32(addr + 0x04, addr + 0x14);
+		Memory::Write_U32(addr + 0x08, addr + 0x18);
+		Memory::Write_U32(addr + 0x0C, addr + 0x1C);
+		Memory::Write_U32(addr + 0x10, addr + 0x20);
+		Memory::Write_U32(addr + 0x14, addr + 0x24);
+		Memory::Write_U32(addr + 0x18, addr + 0x28);
+		Memory::Write_U32(addr + 0x1C, addr + 0x2C);
+		Memory::Write_U32(addr + 0x20, addr + 0x30);
+		Memory::Write_U32(addr + 0x24, addr + 0x34);
+		Memory::Write_U32(addr + 0x28, addr + 0x38);
+	}
+	return addr;
+}
+
+static u32 scePafGetSharedStubContext() {
+	static u32 block = 0;
+	if (block == 0 || !Memory::IsValidAddress(block)) {
+		block = scePafAllocStubContextBlock("scePaf_SharedContext");
+	}
+	return block;
+}
+
 VSH_STUB(sceVshBridge_01730088)
 VSH_STUB(sceVshBridge_0543156C)
 VSH_STUB(sceVshBridge_61001D64)
 VSH_STUB(sceVshBridge_C949966C)
 VSH_STUB(sceVshBridge_DB7C3D5A)
 VSH_STUB(sceVshBridge_21C243FE)
+VSH_STUB(sceVshBridge_2380DC08)
+VSH_STUB(sceVshBridge_29CDFFBA)
+VSH_STUB(sceVshBridge_4A596D2D)
+VSH_STUB(sceVshBridge_4DB43867)
 
 VSH_STUB(sceVshCommonUtil_1D7E0B27)
 VSH_STUB(sceVshCommonUtil_2058CEAA)
@@ -220,13 +267,47 @@ VSH_STUB(sceVshCommonUtil_3CA4266A)
 VSH_STUB(sceVshCommonUtil_A721B1D1)
 VSH_STUB(sceVshCommonUtil_649C3568)
 
-VSH_STUB(scePaf_03B20F85)
-VSH_STUB(scePaf_30AF7A24)
-VSH_STUB(scePaf_44AE2A91)
-VSH_STUB(scePaf_4CA9F1A7)
-VSH_STUB(scePaf_4CF09BA2)
-VSH_STUB(scePaf_4CFAB8D4)
-VSH_STUB(scePaf_4D45C2CF)
+VSH_STUB(sceUtility_netparam_internal_02598DB8)
+VSH_STUB(sceUtility_netparam_internal_09905636)
+VSH_STUB(sceUtility_netparam_internal_6B1BC62C)
+
+static u32 scePaf_03B20F85() {
+	return hleNoLog(scePafGetSharedStubContext());
+}
+static u32 scePaf_30AF7A24() {
+	return hleNoLog(scePafGetSharedStubContext());
+}
+static u32 scePaf_44AE2A91() {
+	return hleNoLog(scePafGetSharedStubContext());
+}
+static u32 scePaf_4CA9F1A7() {
+	return hleNoLog(scePafGetSharedStubContext());
+}
+static u32 scePaf_4CF09BA2() {
+	return hleNoLog(scePafGetSharedStubContext());
+}
+static u32 scePaf_4CFAB8D4() {
+	return hleNoLog(scePafGetSharedStubContext());
+}
+static u32 scePaf_4D45C2CF() {
+	return hleNoLog(scePafGetSharedStubContext());
+}
+#define PAF_ALLOC_STUB(name) static u32 name() { return hleNoLog(scePafAllocStubBlock(#name)); }
+PAF_ALLOC_STUB(scePaf_0085C4A5)
+PAF_ALLOC_STUB(scePaf_00B832B2)
+PAF_ALLOC_STUB(scePaf_02A60EBD)
+PAF_ALLOC_STUB(scePaf_04A7B506)
+PAF_ALLOC_STUB(scePaf_04E015E4)
+PAF_ALLOC_STUB(scePaf_05E14B72)
+PAF_ALLOC_STUB(scePaf_075FACE4)
+PAF_ALLOC_STUB(scePaf_0929EF0D)
+PAF_ALLOC_STUB(scePaf_0A1E907A)
+PAF_ALLOC_STUB(scePaf_0B95292E)
+PAF_ALLOC_STUB(scePaf_0C2CD696)
+PAF_ALLOC_STUB(scePaf_0E8CA0D0)
+#undef PAF_ALLOC_STUB
+
+
 VSH_STUB(scePaf_4F7B8133)
 VSH_STUB(scePaf_505EA775)
 VSH_STUB(scePaf_512737D3)
@@ -240,12 +321,26 @@ VSH_STUB(scePaf_77ADEAEB)
 VSH_STUB(scePaf_781E5F1E)
 VSH_STUB(scePaf_85CFB6E6)
 VSH_STUB(scePaf_9FA3F3F6)
+static u32 scePaf_B9DDDCC8() {
+	return hleNoLog(scePafGetSharedStubContext());
+}
 VSH_STUB(scePaf_CC3426BF)
 VSH_STUB(scePaf_D590412B)
 VSH_STUB(scePaf_D7DCB972)
 VSH_STUB(scePaf_E00895CD)
 VSH_STUB(scePaf_F48A9040)
 VSH_STUB(scePaf_FC5C8A32)
+static u32 scePaf_40A2FAC3() {
+	return hleNoLog(scePafAllocStubBlock("scePaf_40A2FAC3"));
+}
+
+static u32 scePaf_412B2F09() {
+	return hleNoLog(scePafGetSharedStubContext());
+}
+
+static u32 scePaf_BB89C9EA(u32 dst, int value, u32 size) {
+	return scePafMemset(dst, value, size);
+}
 
 #undef VSH_STUB
 
@@ -254,6 +349,10 @@ const HLEFunction sceVshBridge[] =
 	{0X01730088, &WrapI_V<sceVshBridge_01730088>,                     "sceVshBridge_01730088",                   'i', ""   },
 	{0X0543156C, &WrapI_V<sceVshBridge_0543156C>,                     "sceVshBridge_0543156C",                   'i', ""   },
 	{0X21C243FE, &WrapI_V<sceVshBridge_21C243FE>,                     "sceVshBridge_21C243FE",                   'i', ""   },
+	{0X2380DC08, &WrapI_V<sceVshBridge_2380DC08>,                     "sceVshBridge_2380DC08",                   'i', ""   },
+	{0X29CDFFBA, &WrapI_V<sceVshBridge_29CDFFBA>,                     "sceVshBridge_29CDFFBA",                   'i', ""   },
+	{0X4A596D2D, &WrapI_V<sceVshBridge_4A596D2D>,                     "sceVshBridge_4A596D2D",                   'i', ""   },
+	{0X4DB43867, &WrapI_V<sceVshBridge_4DB43867>,                     "sceVshBridge_4DB43867",                   'i', ""   },
 	{0X61001D64, &WrapI_V<sceVshBridge_61001D64>,                     "sceVshBridge_61001D64",                   'i', ""   },
 	{0XC949966C, &WrapI_V<sceVshBridge_C949966C>,                     "sceVshBridge_C949966C",                   'i', ""   },
 	{0XDB7C3D5A, &WrapI_V<sceVshBridge_DB7C3D5A>,                     "sceVshBridge_DB7C3D5A",                   'i', ""   },
@@ -270,15 +369,36 @@ const HLEFunction sceVshCommonUtil[] =
 	{0XA721B1D1, &WrapI_V<sceVshCommonUtil_A721B1D1>,                "sceVshCommonUtil_A721B1D1",              'i', ""   },
 };
 
+const HLEFunction sceUtility_netparam_internal[] =
+{
+	{0X02598DB8, &WrapI_V<sceUtility_netparam_internal_02598DB8>,     "sceUtility_netparam_internal_02598DB8", 'i', ""   },
+	{0X09905636, &WrapI_V<sceUtility_netparam_internal_09905636>,     "sceUtility_netparam_internal_09905636", 'i', ""   },
+	{0X6B1BC62C, &WrapI_V<sceUtility_netparam_internal_6B1BC62C>,     "sceUtility_netparam_internal_6B1BC62C", 'i', ""   },
+};
+
 const HLEFunction scePaf[] =
 {
-	{0X03B20F85, &WrapI_V<scePaf_03B20F85>,                          "scePaf_03B20F85",                        'i', ""   },
-	{0X30AF7A24, &WrapI_V<scePaf_30AF7A24>,                          "scePaf_30AF7A24",                        'i', ""   },
-	{0X44AE2A91, &WrapI_V<scePaf_44AE2A91>,                          "scePaf_44AE2A91",                        'i', ""   },
-	{0X4CA9F1A7, &WrapI_V<scePaf_4CA9F1A7>,                          "scePaf_4CA9F1A7",                        'i', ""   },
-	{0X4CF09BA2, &WrapI_V<scePaf_4CF09BA2>,                          "scePaf_4CF09BA2",                        'i', ""   },
-	{0X4CFAB8D4, &WrapI_V<scePaf_4CFAB8D4>,                          "scePaf_4CFAB8D4",                        'i', ""   },
-	{0X4D45C2CF, &WrapI_V<scePaf_4D45C2CF>,                          "scePaf_4D45C2CF",                        'i', ""   },
+	{0X0085C4A5, &WrapU_V<scePaf_0085C4A5>,                          "scePaf_0085C4A5",                        'x', ""   },
+	{0X00B832B2, &WrapU_V<scePaf_00B832B2>,                          "scePaf_00B832B2",                        'x', ""   },
+	{0X02A60EBD, &WrapU_V<scePaf_02A60EBD>,                          "scePaf_02A60EBD",                        'x', ""   },
+	{0X04A7B506, &WrapU_V<scePaf_04A7B506>,                          "scePaf_04A7B506",                        'x', ""   },
+	{0X04E015E4, &WrapU_V<scePaf_04E015E4>,                          "scePaf_04E015E4",                        'x', ""   },
+	{0X05E14B72, &WrapU_V<scePaf_05E14B72>,                          "scePaf_05E14B72",                        'x', ""   },
+	{0X075FACE4, &WrapU_V<scePaf_075FACE4>,                          "scePaf_075FACE4",                        'x', ""   },
+	{0X0929EF0D, &WrapU_V<scePaf_0929EF0D>,                          "scePaf_0929EF0D",                        'x', ""   },
+	{0X0A1E907A, &WrapU_V<scePaf_0A1E907A>,                          "scePaf_0A1E907A",                        'x', ""   },
+	{0X0B95292E, &WrapU_V<scePaf_0B95292E>,                          "scePaf_0B95292E",                        'x', ""   },
+	{0X0C2CD696, &WrapU_V<scePaf_0C2CD696>,                          "scePaf_0C2CD696",                        'x', ""   },
+	{0X0E8CA0D0, &WrapU_V<scePaf_0E8CA0D0>,                          "scePaf_0E8CA0D0",                        'x', ""   },
+	{0X03B20F85, &WrapU_V<scePaf_03B20F85>,                          "scePaf_03B20F85",                        'x', ""   },
+	{0X30AF7A24, &WrapU_V<scePaf_30AF7A24>,                          "scePaf_30AF7A24",                        'x', ""   },
+	{0X40A2FAC3, &WrapU_V<scePaf_40A2FAC3>,                          "scePaf_40A2FAC3",                        'x', ""   },
+	{0X412B2F09, &WrapU_V<scePaf_412B2F09>,                          "scePaf_412B2F09",                        'x', ""   },
+	{0X44AE2A91, &WrapU_V<scePaf_44AE2A91>,                          "scePaf_44AE2A91",                        'x', ""   },
+	{0X4CA9F1A7, &WrapU_V<scePaf_4CA9F1A7>,                          "scePaf_4CA9F1A7",                        'x', ""   },
+	{0X4CF09BA2, &WrapU_V<scePaf_4CF09BA2>,                          "scePaf_4CF09BA2",                        'x', ""   },
+	{0X4CFAB8D4, &WrapU_V<scePaf_4CFAB8D4>,                          "scePaf_4CFAB8D4",                        'x', ""   },
+	{0X4D45C2CF, &WrapU_V<scePaf_4D45C2CF>,                          "scePaf_4D45C2CF",                        'x', ""   },
 	{0X4F7B8133, &WrapI_V<scePaf_4F7B8133>,                          "scePaf_4F7B8133",                        'i', ""   },
 	{0X505EA775, &WrapI_V<scePaf_505EA775>,                          "scePaf_505EA775",                        'i', ""   },
 	{0X512737D3, &WrapI_V<scePaf_512737D3>,                          "scePaf_512737D3",                        'i', ""   },
@@ -292,6 +412,8 @@ const HLEFunction scePaf[] =
 	{0X781E5F1E, &WrapI_V<scePaf_781E5F1E>,                          "scePaf_781E5F1E",                        'i', ""   },
 	{0X85CFB6E6, &WrapI_V<scePaf_85CFB6E6>,                          "scePaf_85CFB6E6",                        'i', ""   },
 	{0X9FA3F3F6, &WrapI_V<scePaf_9FA3F3F6>,                          "scePaf_9FA3F3F6",                        'i', ""   },
+	{0XB9DDDCC8, &WrapU_V<scePaf_B9DDDCC8>,                          "scePaf_B9DDDCC8",                        'x', ""   },
+	{0XBB89C9EA, &WrapU_UIU<scePaf_BB89C9EA>,                        "scePaf_BB89C9EA",                        'x', "xix"},
 	{0XCC3426BF, &WrapI_V<scePaf_CC3426BF>,                          "scePaf_CC3426BF",                        'i', ""   },
 	{0XD590412B, &WrapI_V<scePaf_D590412B>,                          "scePaf_D590412B",                        'i', ""   },
 	{0XD7DCB972, &WrapI_V<scePaf_D7DCB972>,                          "scePaf_D7DCB972",                        'i', ""   },
@@ -428,6 +550,7 @@ void RegisterAllModules() {
 
 	RegisterHLEModule("sceVshBridge", ARRAY_SIZE(sceVshBridge), sceVshBridge);
 	RegisterHLEModule("sceVshCommonUtil", ARRAY_SIZE(sceVshCommonUtil), sceVshCommonUtil);
+	RegisterHLEModule("sceUtility_netparam_internal", ARRAY_SIZE(sceUtility_netparam_internal), sceUtility_netparam_internal);
 	RegisterHLEModule("scePaf", ARRAY_SIZE(scePaf), scePaf);
 
 	// add new modules here.
