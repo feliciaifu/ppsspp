@@ -869,10 +869,8 @@ static int sceRtcGetAlarmTick(u32 tickPtr)
 	if (!tick.IsValid())
 		return hleLogError(Log::sceRtc, 0, "bad address");
 
-	if (!rtcAlarmTickSet) {
-		rtcAlarmTick = __RtcGetCurrentTick();
-		rtcAlarmTickSet = true;
-	}
+	if (!rtcAlarmTickSet)
+		rtcAlarmTick = 0;
 	*tick = rtcAlarmTick;
 	if (Reporting::ShouldLogNTimes("vsh_rtc_alarm_trace", 200)) {
 		SceUID threadID = __KernelGetCurThread();

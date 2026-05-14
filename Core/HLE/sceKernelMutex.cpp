@@ -1056,10 +1056,6 @@ int sceKernelUnlockLwMutex(u32 workareaPtr, int count)
 		if (__KernelUnlockLwMutex(workarea, error))
 			hleReSchedule("lwmutex unlocked");
 	}
-	else if (workareaPtr == 0x08860c80 && IsVshGraphicsThread(__KernelGetCurThread()))
-	{
-		hleReSchedule("vsh lwmutex unlock yield");
-	}
 
 	return hleNoLog(0);
 }
