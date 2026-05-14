@@ -869,7 +869,16 @@ static int sceRtcGetAlarmTick(u32 tickPtr)
 	if (!tick.IsValid())
 		return hleLogError(Log::sceRtc, 0, "bad address");
 
-	*tick = rtcAlarmTickSet ? rtcAlarmTick : 0;
+	if (!rtcAlarmTickSet) {
+		rtcAlarmTick = __RtcGetCurrentTick();
+		rtcAlarmTickSet = true;
+	}
+	*tick = rtcAlarmTick;
+	if (Reporting::ShouldLogNTimes("vsh_rtc_alarm_trace", 200)) {
+		SceUID threadID = __KernelGetCurThread();
+		const char *threadName = __KernelGetThreadName(threadID);
+		INFO_LOG(Log::sceRtc, "[VSH-RTC] getAlarmTick ptr=%08x tick=%016llx tickSet=%d cur=%08x(%s) mipsPC=%08x hlePC=%08x", tickPtr, (unsigned long long)*tick, rtcAlarmTickSet ? 1 : 0, threadID, threadName ? threadName : "(null)", currentMIPS ? currentMIPS->pc : 0, GetCurrentSyscallPC());
+	}
 	return hleLogDebug(Log::sceRtc, 0, "%016llx", (unsigned long long)*tick);
 }
 

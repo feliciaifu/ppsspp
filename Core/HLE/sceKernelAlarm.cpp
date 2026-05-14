@@ -121,6 +121,11 @@ static void __KernelTriggerAlarm(u64 userdata, int cyclesLate) {
 	u32 error;
 	PSPAlarm *alarm = kernelObjects.Get<PSPAlarm>(uid, error);
 	if (alarm) {
+		if (Reporting::ShouldLogNTimes("vsh_alarm_trace", 400)) {
+			SceUID threadID = __KernelGetCurThread();
+			const char *threadName = __KernelGetThreadName(threadID);
+			INFO_LOG(Log::sceKernel, "[VSH-ALARM] trigger uid=%08x handler=%08x common=%08x schedule=%llu cur=%08x(%s) cyclesLate=%d mipsPC=%08x", uid, alarm->alm.handlerPtr, alarm->alm.commonPtr, (unsigned long long)alarm->alm.schedule, threadID, threadName ? threadName : "(null)", cyclesLate, currentMIPS ? currentMIPS->pc : 0);
+		}
 		triggeredAlarm.push_back(uid);
 		__TriggerInterrupt(PSP_INTR_IMMEDIATE, PSP_SYSTIMER0_INTR);
 	}
@@ -167,6 +172,11 @@ static SceUID __KernelSetAlarm(u64 micro, u32 handlerPtr, u32 commonPtr)
 	alarm->alm.commonPtr = commonPtr;
 
 	__KernelScheduleAlarm(alarm, micro);
+	if (Reporting::ShouldLogNTimes("vsh_alarm_trace", 400)) {
+		SceUID threadID = __KernelGetCurThread();
+		const char *threadName = __KernelGetThreadName(threadID);
+		INFO_LOG(Log::sceKernel, "[VSH-ALARM] set uid=%08x micro=%llu handler=%08x common=%08x cur=%08x(%s) mipsPC=%08x", uid, (unsigned long long)micro, handlerPtr, commonPtr, threadID, threadName ? threadName : "(null)", currentMIPS ? currentMIPS->pc : 0);
+	}
 	return uid;
 }
 

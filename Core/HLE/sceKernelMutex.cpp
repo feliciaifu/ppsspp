@@ -148,6 +148,26 @@ static int lwMutexWaitTimer = -1;
 typedef std::unordered_multimap<SceUID, SceUID> MutexMap;
 static MutexMap mutexHeldLocks;
 
+static inline bool IsVshGraphicsThread(SceUID threadID) {
+	const char *threadName = __KernelGetThreadName(threadID);
+	return threadName && strcmp(threadName, "SCE_VSH_GRAPHICS") == 0;
+}
+
+static inline bool ShouldTraceVshLwMutex(u32 workareaPtr) {
+	SceUID threadID = __KernelGetCurThread();
+	return workareaPtr == 0x08860c80 || IsVshGraphicsThread(threadID);
+}
+
+static inline void TraceVshLwMutex(const char *tag, u32 workareaPtr, const NativeLwMutexWorkarea *workarea, int count, u32 error, int waitingCount = -1) {
+	if (!Reporting::ShouldLogNTimes("vsh_lwmutex_trace", 2000))
+		return;
+	if (!ShouldTraceVshLwMutex(workareaPtr))
+		return;
+	SceUID threadID = __KernelGetCurThread();
+	const char *threadName = __KernelGetThreadName(threadID);
+	INFO_LOG(Log::sceKernel, "[VSH-LWMUTEX] %s wa=%08x uid=%d attr=%08x lockLevel=%d lockThread=%08x count=%d err=%08x cur=%08x(%s) waiting=%d mipsPC=%08x hlePC=%08x", tag, workareaPtr, workarea ? (int)workarea->uid : -1, workarea ? (u32)workarea->attr : 0, workarea ? (int)workarea->lockLevel : -1, workarea ? (u32)workarea->lockThread : 0, count, error, threadID, threadName ? threadName : "(null)", waitingCount, currentMIPS ? currentMIPS->pc : 0, GetCurrentSyscallPC());
+}
+
 void __KernelMutexBeginCallback(SceUID threadID, SceUID prevCallbackId);
 void __KernelMutexEndCallback(SceUID threadID, SceUID prevCallbackId);
 void __KernelLwMutexBeginCallback(SceUID threadID, SceUID prevCallbackId);
@@ -933,6 +953,9 @@ int sceKernelLockLwMutex(u32 workareaPtr, int count, u32 timeoutPtr)
 	}
 
 	auto workarea = PSPPointer<NativeLwMutexWorkarea>::Create(workareaPtr);
+	if (ShouldTraceVshLwMutex(workareaPtr)) {
+		TraceVshLwMutex("sceKernelLockLwMutex-call", workareaPtr, workarea, count, 0);
+	}
 	hleEatCycles(48);
 
 	u32 error = 0;
@@ -950,6 +973,9 @@ int sceKernelLockLwMutex(u32 workareaPtr, int count, u32 timeoutPtr)
 			// May be in a tight loop timing out (where we don't remove from waitingThreads yet), don't want to add duplicates.
 			if (std::find(mutex->waitingThreads.begin(), mutex->waitingThreads.end(), threadID) == mutex->waitingThreads.end())
 				mutex->waitingThreads.push_back(threadID);
+			if (ShouldTraceVshLwMutex(workareaPtr)) {
+				TraceVshLwMutex("sceKernelLockLwMutex-wait", workareaPtr, workarea, count, 0, (int)mutex->waitingThreads.size());
+			}
 			__KernelWaitLwMutex(mutex, timeoutPtr);
 			__KernelWaitCurThread(WAITTYPE_LWMUTEX, workarea->uid, count, timeoutPtr, false, "lwmutex waited");
 
@@ -968,6 +994,9 @@ int sceKernelLockLwMutexCB(u32 workareaPtr, int count, u32 timeoutPtr)
 	}
 
 	auto workarea = PSPPointer<NativeLwMutexWorkarea>::Create(workareaPtr);
+	if (ShouldTraceVshLwMutex(workareaPtr)) {
+		TraceVshLwMutex("sceKernelLockLwMutexCB-call", workareaPtr, workarea, count, 0);
+	}
 	hleEatCycles(48);
 
 	u32 error = 0;
@@ -1003,6 +1032,9 @@ int sceKernelUnlockLwMutex(u32 workareaPtr, int count)
 	auto workarea = PSPPointer<NativeLwMutexWorkarea>::Create(workareaPtr);
 	hleEatCycles(28);
 
+	if (ShouldTraceVshLwMutex(workareaPtr)) {
+		TraceVshLwMutex("sceKernelUnlockLwMutex-call", workareaPtr, workarea, count, 0);
+	}
 	if (workarea->uid == -1)
 		return hleLogError(Log::sceKernel, SCE_LWMUTEX_ERROR_NO_SUCH_LWMUTEX);
 	else if (count <= 0)
