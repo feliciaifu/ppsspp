@@ -183,6 +183,9 @@ void WriteFuncMissingStub(u32 stubAddr, u32 nid);
 void HLEReturnFromMipsCall();
 
 const HLEFunction *GetSyscallFuncPointer(MIPSOpcode op);
+const HLEFunction *GetCurrentHLEFunction();
+u32 GetCurrentSyscallPC();
+void GetRecentHLETrace(char *buffer, size_t bufferSize);
 // For jit, takes arg: const HLEFunction *
 void *GetQuickSyscallFunc(MIPSOpcode op);
 

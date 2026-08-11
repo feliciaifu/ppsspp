@@ -354,6 +354,7 @@
 #define IDC_DISASM_FMT_FLOAT             40234
 #define IDC_DISASM_FMT_STR               40235
 #define ID_DISASM_EDITSYMBOLS            40236
+#define ID_DISASM_COPYALLVISIBLE         40237
 
 
 // Dummy option to let the buffered rendering hotkey cycle through all the options.

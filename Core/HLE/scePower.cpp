@@ -546,6 +546,14 @@ static int scePowerTick() {
 	return hleLogDebug(Log::sceMisc, 0);
 }
 
+static int scePowerRequestStandby() {
+	return hleLogDebug(Log::sceMisc, 0);
+}
+
+static int scePowerRequestSuspend() {
+	return hleLogDebug(Log::sceMisc, 0);
+}
+
 static u32 IsPSPNonFat() {
 	return hleLogDebug(Log::sceMisc, g_Config.iPSPModel);
 }
@@ -582,8 +590,8 @@ static const HLEFunction scePower[] = {
 	{0XCA3D34C1, nullptr,                                     "scePowerUnlock",                    '?', ""   },
 	{0XDB62C9CF, nullptr,                                     "scePowerCancelRequest",             '?', ""   },
 	{0X7FA406DD, nullptr,                                     "scePowerIsRequest",                 '?', ""   },
-	{0X2B7C7CF4, nullptr,                                     "scePowerRequestStandby",            '?', ""   },
-	{0XAC32C9CC, nullptr,                                     "scePowerRequestSuspend",            '?', ""   },
+	{0X2B7C7CF4, &WrapI_V<scePowerRequestStandby>,            "scePowerRequestStandby",            'i', ""   },
+	{0XAC32C9CC, &WrapI_V<scePowerRequestSuspend>,            "scePowerRequestSuspend",            'i', ""   },
 	{0X2875994B, nullptr,                                     "scePower_2875994B",                 '?', ""   },
 	{0X0074EF9B, nullptr,                                     "scePowerGetResumeCount",            '?', ""   },
 	{0XDFA8BAF8, &WrapI_I<scePowerUnregisterCallback>,        "scePowerUnregisterCallback",        'i', "i"  },

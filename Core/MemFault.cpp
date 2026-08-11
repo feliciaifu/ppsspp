@@ -46,6 +46,7 @@
 // Stack walking stuff
 #include "Core/MIPS/MIPSStackWalk.h"
 #include "Core/MIPS/MIPSDebugInterface.h"
+#include "Core/HLE/HLE.h"
 #include "Core/HLE/sceKernelThread.h"
 
 namespace Memory {
@@ -278,8 +279,16 @@ bool HandleFault(uintptr_t hostAddress, void *ctx) {
 		// Move on to the next instruction. Note that handling bad accesses like this is pretty slow.
 		context->CTX_PC += info.instructionSize;
 		g_numReportedBadAccesses++;
-		if (Reporting::ShouldLogNTimes("bad_memory_access_ignored", 5)) {
-			ERROR_LOG(Log::MemMap, "Bad memory access detected and ignored: %08x (%p)", guestAddress, (void *)hostAddress);
+		if (Reporting::ShouldLogNTimes("bad_memory_access_ignored", 5) && guestAddress <= 0x8) {
+			const HLEFunction *hleFunc = GetCurrentHLEFunction();
+			const char *hleName = hleFunc && hleFunc->name ? hleFunc->name : "(none)";
+			u32 hleNid = hleFunc ? hleFunc->ID : 0;
+			u32 hlePC = GetCurrentSyscallPC();
+			SceUID threadID = __KernelGetCurThread();
+			const char *threadName = __KernelGetThreadName(threadID);
+			char recentTrace[1024] = {};
+			GetRecentHLETrace(recentTrace, sizeof(recentTrace));
+			ERROR_LOG(Log::MemMap, "Bad memory access detected and ignored: %08x (%p) mipsPC=%08x hlePC=%08x hle=%s nid=%08x hostPC=%p thread=%08x(%s) recentHLE=%s", guestAddress, (void *)hostAddress, currentMIPS ? currentMIPS->pc : 0, hlePC, hleName, hleNid, codePtr, threadID, threadName ? threadName : "(null)", recentTrace);
 		}
 	} else {
 		std::string infoString = "";

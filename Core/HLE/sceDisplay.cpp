@@ -190,6 +190,9 @@ void __DisplayInit() {
 	framebuf.topaddr = 0x04000000;
 	framebuf.fmt = GE_FORMAT_8888;
 	framebuf.stride = 512;
+	if (gpu) {
+		gpu->SetDisplayFramebuffer(framebuf.topaddr, framebuf.stride, framebuf.fmt);
+	}
 	memcpy(&latchedFramebuf, &framebuf, sizeof(latchedFramebuf));
 	lastFlipsTooFrequent = 0;
 	lastFlipCycles = 0;
@@ -572,6 +575,7 @@ static void NotifyUserIfSlow() {
 void __DisplayFlip(int cyclesLate) {
 	_dbg_assert_(gpu);
 
+	gpu->SetDisplayFramebuffer(framebuf.topaddr, framebuf.stride, framebuf.fmt);
 	__DisplaySetFramerate();
 
 	flippedThisFrame = true;
@@ -782,6 +786,12 @@ void __DisplayWaitForVblanks(const char *reason, int vblanks, bool callbacks) {
 	const s64 ticksIntoFrame = CoreTiming::GetTicks() - DisplayFrameStartTicks();
 	const s64 cyclesToNextVblank = msToCycles(frameMs) - ticksIntoFrame;
 
+	if (Reporting::ShouldLogNTimes("vsh_display_waitvblank_trace", 50)) {
+		SceUID threadID = __KernelGetCurThread();
+		const char *threadName = __KernelGetThreadName(threadID);
+		INFO_LOG(Log::sceDisplay, "DisplayWaitForVblanks reason=%s vblanks=%d callbacks=%d cyclesToNext=%lld thread=%08x(%s)", reason ? reason : "(null)", vblanks, callbacks ? 1 : 0, (long long)cyclesToNextVblank, threadID, threadName ? threadName : "(null)");
+	}
+
 	// These syscalls take about 115 us, so if the next vblank is before then, we're waiting extra.
 	// At least, on real firmware a wait >= 16500 into the frame will wait two.
 	if (cyclesToNextVblank <= usToCycles(115)) {
@@ -872,6 +882,13 @@ int sceDisplaySetFramebuf(u32 topaddr, int linesize, int pixelformat, int sync) 
 
 	hleEatCycles(290);
 
+
+	if (Reporting::ShouldLogNTimes("vsh_display_setframebuf_trace", 50)) {
+		SceUID threadID = __KernelGetCurThread();
+		const char *threadName = __KernelGetThreadName(threadID);
+		INFO_LOG(Log::sceDisplay, "sceDisplaySetFramebuf top=%08x stride=%d fmt=%d sync=%d mipsPC=%08x hlePC=%08x thread=%08x(%s)", topaddr, linesize, pixelformat, sync, currentMIPS ? currentMIPS->pc : 0, GetCurrentSyscallPC(), threadID, threadName ? threadName : "(null)");
+	}
+
 	s64 delayCycles = 0;
 	// Don't count transitions between display off and display on.
 	if (topaddr != 0 &&
@@ -916,6 +933,11 @@ int sceDisplaySetFramebuf(u32 topaddr, int linesize, int pixelformat, int sync) 
 		return hleDelayResult(hleLogDebug(Log::sceDisplay, 0, "delaying frame thread"), "set framebuf", cyclesToUs(delayCycles));
 	} else {
 		if (topaddr == 0) {
+			if (Reporting::ShouldLogNTimes("vsh_display_setframebuf_disable", 20)) {
+				SceUID threadID = __KernelGetCurThread();
+				const char *threadName = __KernelGetThreadName(threadID);
+				ERROR_LOG(Log::sceDisplay, "Display framebuffer disabled by guest: topaddr=0 sync=%d stride=%d fmt=%d mipsPC=%08x hlePC=%08x thread=%08x(%s)", sync, linesize, pixelformat, currentMIPS ? currentMIPS->pc : 0, GetCurrentSyscallPC(), threadID, threadName ? threadName : "(null)");
+			}
 			return hleLogDebug(Log::sceDisplay, 0, "disabling display");
 		} else {
 			return hleLogDebug(Log::sceDisplay, 0);

@@ -15,6 +15,7 @@
 // Official git repository and contact information can be found at
 // https://github.com/hrydgard/ppsspp and http://www.ppsspp.org/.
 
+#include <array>
 #include <cstdarg>
 #include <map>
 #include <vector>
@@ -78,6 +79,61 @@ static const char *hleAfterSyscallReschedReason;
 static const HLEFunction *g_stack[MAX_SYSCALL_RECURSION];
 u32 g_syscallPC;
 int g_stackSize;
+
+struct HLETraceEntry {
+	u32 callPC;
+	u32 mipsPC;
+	u32 threadID;
+	u32 nid;
+	const char *name;
+};
+
+static constexpr int HLE_TRACE_HISTORY = 16;
+static std::array<HLETraceEntry, HLE_TRACE_HISTORY> g_hleTrace;
+static int g_hleTracePos = 0;
+static int g_hleTraceCount = 0;
+
+static void RecordHLETrace(const HLEFunction *info) {
+	if (!info || !currentMIPS)
+		return;
+	HLETraceEntry &entry = g_hleTrace[g_hleTracePos];
+	entry.callPC = g_syscallPC;
+	entry.mipsPC = currentMIPS->pc;
+	entry.threadID = __KernelGetCurThread();
+	entry.nid = info->ID;
+	entry.name = info->name;
+	g_hleTracePos = (g_hleTracePos + 1) % HLE_TRACE_HISTORY;
+	if (g_hleTraceCount < HLE_TRACE_HISTORY)
+		g_hleTraceCount++;
+}
+
+void GetRecentHLETrace(char *buffer, size_t bufferSize) {
+	if (!buffer || bufferSize == 0)
+		return;
+	if (g_hleTraceCount == 0) {
+		strncpy(buffer, "(empty)", bufferSize);
+		buffer[bufferSize - 1] = '\0';
+		return;
+	}
+
+	char *p = buffer;
+	size_t used = 0;
+	for (int i = 0; i < g_hleTraceCount; ++i) {
+		int idx = (g_hleTracePos - 1 - i + HLE_TRACE_HISTORY) % HLE_TRACE_HISTORY;
+		const HLETraceEntry &entry = g_hleTrace[idx];
+		const char *name = entry.name ? entry.name : "(null)";
+		int written = snprintf(p, bufferSize > used ? bufferSize - used : 0, "#%d tid=%08x nid=%08x callPC=%08x mipsPC=%08x %s\n", i, entry.threadID, entry.nid, entry.callPC, entry.mipsPC, name);
+		if (written <= 0)
+			break;
+		if ((size_t)written >= bufferSize - used) {
+			used = bufferSize - 1;
+			break;
+		}
+		used += (size_t)written;
+		p += written;
+	}
+	buffer[used] = '\0';
+}
 
 static int idleOp;
 
@@ -862,6 +918,8 @@ static void CallSyscallWithFlags(const HLEFunction *info) {
 		info->func();
 	}
 
+	RecordHLETrace(info);
+
 	// Now, g_stackSize should be back to 0. Enable this for "pedantic mode", will find a lot of problems.
 	// Check g_stack[0] in the debugger.
 	// _dbg_assert_(g_stackSize == 0);
@@ -886,6 +944,8 @@ static void CallSyscallWithoutFlags(const HLEFunction *info) {
 	g_syscallPC = currentMIPS->pc;
 
 	info->func();
+
+	RecordHLETrace(info);
 
 	// Now, g_stackSize should be back to 0. Enable this for "pedantic mode", will find a lot of problems.
 	// Check g_stack[0] in the debugger.
@@ -921,6 +981,17 @@ const HLEFunction *GetSyscallFuncPointer(MIPSOpcode op) {
 		return NULL;
 	}
 	return &moduleDB[modulenum].funcTable[funcnum];
+}
+
+const HLEFunction *GetCurrentHLEFunction() {
+	if (g_stackSize <= 0 || g_stackSize > ARRAY_SIZE(g_stack)) {
+		return nullptr;
+	}
+	return g_stack[g_stackSize - 1];
+}
+
+u32 GetCurrentSyscallPC() {
+	return g_syscallPC;
 }
 
 void *GetQuickSyscallFunc(MIPSOpcode op) {

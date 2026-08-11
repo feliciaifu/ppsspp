@@ -691,6 +691,12 @@ void CtrlDisAsmView::onKeyDown(WPARAM wParam, LPARAM lParam)
 			search(false);
 			break;
 		case 'c':
+			if (KeyDownAsync(VK_SHIFT)) {
+				CopyAllVisible();
+			} else {
+				CopyInstructions(selectRangeStart, selectRangeEnd, CopyInstructionsMode::DISASM);
+			}
+			break;
 		case VK_INSERT:
 			CopyInstructions(selectRangeStart, selectRangeEnd, CopyInstructionsMode::DISASM);
 			break;
@@ -902,6 +908,27 @@ void CtrlDisAsmView::CopyInstructions(u32 startAddr, u32 endAddr, CopyInstructio
 	}
 }
 
+void CtrlDisAsmView::CopyAllVisible() {
+	std::string result;
+	DisassemblyLineInfo line;
+	unsigned int address = windowStart;
+
+	for (int i = 0; i < visibleRows; i++) {
+		g_disassemblyManager.getLine(address, displaySymbols, line, debugger);
+
+		char addressText[64];
+		GetDisasmAddressText(address, addressText, true, line.type == DISTYPE_OPCODE, displaySymbols);
+
+		char buffer[512];
+		snprintf(buffer, sizeof(buffer), "%s  %-10s %s\r\n", addressText, line.name.c_str(), line.params.c_str());
+		result += buffer;
+
+		address += line.totalSize;
+	}
+
+	W32Util::CopyTextToClipboard(wnd, result.c_str());
+}
+
 void CtrlDisAsmView::NopInstructions(u32 selectRangeStart, u32 selectRangeEnd) {
 	for (u32 addr = selectRangeStart; addr < selectRangeEnd; addr += 4) {
 		Memory::Write_U32(0, addr);
@@ -951,6 +978,9 @@ void CtrlDisAsmView::onMouseUp(WPARAM wParam, LPARAM lParam, int button)
 			break;
 		case ID_DISASM_COPYINSTRUCTIONHEX:
 			CopyInstructions(selectRangeStart, selectRangeEnd, CopyInstructionsMode::OPCODES);
+			break;
+		case ID_DISASM_COPYALLVISIBLE:
+			CopyAllVisible();
 			break;
 		case ID_DISASM_NOPINSTRUCTION:
 			NopInstructions(selectRangeStart, selectRangeEnd);
@@ -1088,7 +1118,7 @@ void CtrlDisAsmView::onMouseMove(WPARAM wParam, LPARAM lParam, int button)
 	if ((button & 1) != 0)
 	{
 		int y = HIWORD(lParam);
-		setCurAddress(yToAddress(y), KeyDownAsync(VK_SHIFT));
+		setCurAddress(yToAddress(y), true);
 		redraw();
 	}
 }	
